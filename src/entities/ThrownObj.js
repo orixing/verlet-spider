@@ -15,14 +15,14 @@ export function getObjectDef(kind, P, gameState, getLevelCfgFn, currentLevel) {
     return {
       r: 9, collectRadius: 5, weight: P.flyWeight,
       stayFrames: Math.round(P.flyReleaseSec * 60 * flyScale),
-      gravity: 0, wrapDur: 100  /* 攻击/打包时间 */
+      gravity: 0, wrapDur: 240  /* 攻击时间 4秒 */
     };
   }
   /* drop (leaf) */
   return {
     r: 14, collectRadius: 12, weight: P.leafWeight,
     stayFrames: Math.round(P.leafReleaseSec * 60),
-    gravity: 0.06, wrapDur: 100
+    gravity: 0.06, wrapDur: 180  /* 采集时间 3秒 */
   };
 }
 

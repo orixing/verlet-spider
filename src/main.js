@@ -59,7 +59,7 @@ window.onload = function () {
     stickDelayMin: 0.10, stickDelayMax: 0.45, stickCatchRadius: 18,
     stickMidBias: 0.8, stickHistory: 40,
     flyWeight: 3, leafWeight: 1,
-    flyReleaseSec: 3, leafReleaseSec: 0
+    flyReleaseSec: 5, leafReleaseSec: 0
   };
   var P = Object.assign({}, DEFAULTS);
   try { Object.assign(P, JSON.parse(localStorage.getItem('spiderPanelParams') || '{}')); } catch (e) { }
