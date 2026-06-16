@@ -138,8 +138,8 @@ window.onload = function () {
     spiderUnits = [];
     STEP_SPEED = P.stepSpeed; STEP_THRESH = P.stepThresh; REST_THRESH = P.restThresh;
 
-    /* Roles: index 0,1 = default (later: fighter, healer), index 2 = collector (green) */
-    var ROLES = ['default', 'default', 'collector'];
+    /* Roles: default=fighter(black), collector=leaf-gatherer(green), healer=web-repair(white) */
+    var ROLES = ['default', 'collector', 'healer'];
 
     /* Spread initial positions around center */
     var angleStep = (Math.PI * 2) / NUM_SPIDERS;
@@ -622,7 +622,8 @@ window.onload = function () {
     thrownObjects.push(obj); updateBadge(kind, 1);
   }
   function clearAllObjects() {
-    spiderUnits.forEach(function (u) { u.wrappingTarget = null; });
+    spiderUnits.forEach(function (u) { u.wrappingTarget = null; u._repairCooldown = 0; });
+    repairingConstraints = [];
     audioEngine.stopAllBugBuzz();
     thrownObjects.forEach(function (o) {
       if (o.collectEl && o.collectEl.parentNode) o.collectEl.parentNode.removeChild(o.collectEl);
@@ -705,8 +706,9 @@ window.onload = function () {
   /** Check if a spider role can interact with a prey kind */
   function canCollect(role, kind) {
     if (role === 'collector') return kind === 'drop';  /* green spider: leaves only */
-    /* default / fighter / healer: everything except leaves (for now) */
-    return kind !== 'drop';
+    if (role === 'healer') return false;               /* white spider: no collection, only repairs */
+    /* default (fighter): bugs only */
+    return kind === 'bug';
   }
 
   /** Check all spiders for prey collection */
@@ -735,6 +737,140 @@ window.onload = function () {
         }
       }
     }
+  }
+
+  /* ================================================================
+     HEALER REPAIR SYSTEM
+  ================================================================ */
+  var REPAIR_RADIUS = 40;       /* repair broken edges within this radius */
+  var REPAIR_MAX_PER_TICK = 999; /* no limit — repair all within radius */
+  var REPAIR_SPEED = 0.015;     /* progress per frame (0→1 over ~67 frames ≈ 1.1s) */
+  var REPAIR_COOLDOWN = 30;     /* frames between repair bursts per healer */
+  var repairingConstraints = []; /* list of constraints currently being repaired */
+
+  /**
+   * Find broken edges near a position.
+   * Returns array of original edge records that are no longer in spiderweb.constraints.
+   */
+  function findBrokenEdgesNear(x, y, radius) {
+    if (!spiderweb || !spiderweb._originalEdges) return [];
+    var r2 = radius * radius;
+    /* Build set of currently alive edges (by particle pair) */
+    var alive = new Set();
+    for (var i = 0; i < spiderweb.constraints.length; i++) {
+      var c = spiderweb.constraints[i];
+      if (c instanceof DistanceConstraint) {
+        /* Use object identity — two particles form a unique pair */
+        alive.add(c.a); /* we'll do a different approach: store constraint refs */
+      }
+    }
+    /* Actually, we need to check if original edge {a,b} still exists.
+       Build a lookup of alive constraint pairs. */
+    var aliveSet = {};
+    for (var i = 0; i < spiderweb.constraints.length; i++) {
+      var c = spiderweb.constraints[i];
+      if (!(c instanceof DistanceConstraint)) continue;
+      var idA = c.a.__repId || (c.a.__repId = ++_repIdCounter);
+      var idB = c.b.__repId || (c.b.__repId = ++_repIdCounter);
+      var key = idA < idB ? idA + '|' + idB : idB + '|' + idA;
+      aliveSet[key] = true;
+    }
+
+    var broken = [];
+    for (var j = 0; j < spiderweb._originalEdges.length; j++) {
+      var e = spiderweb._originalEdges[j];
+      /* Check if either endpoint particle is near the healer position */
+      var dxA = e.a.pos.x - x, dyA = e.a.pos.y - y;
+      var dxB = e.b.pos.x - x, dyB = e.b.pos.y - y;
+      var distA = dxA * dxA + dyA * dyA;
+      var distB = dxB * dxB + dyB * dyB;
+      if (distA > r2 && distB > r2) continue;
+      /* Check if already alive */
+      var idA = e.a.__repId || (e.a.__repId = ++_repIdCounter);
+      var idB = e.b.__repId || (e.b.__repId = ++_repIdCounter);
+      var key = idA < idB ? idA + '|' + idB : idB + '|' + idA;
+      if (aliveSet[key]) continue;
+      /* Check if already being repaired */
+      if (e._repairingActive) continue;
+      broken.push(e);
+    }
+    return broken;
+  }
+  var _repIdCounter = 0;
+
+  /**
+   * Start repairing edges: create new constraints with gradual tension
+   */
+  function startRepairEdges(edges) {
+    for (var i = 0; i < edges.length; i++) {
+      var e = edges[i];
+      var currentDist = e.a.pos.sub(e.b.pos).length();
+      /* Clamp: if particles drifted very far, start from a reasonable distance */
+      if (currentDist > e.distance * 20) currentDist = e.distance * 5;
+      var c = new DistanceConstraint(e.a, e.b, 0.05, currentDist);
+      c._repairing = true;
+      c._repairProgress = 0;
+      c._targetDistance = e.distance;
+      c._targetStiffness = e.stiffness;
+      c._startDistance = currentDist;
+      spiderweb.constraints.push(c);
+      repairingConstraints.push(c);
+      e._repairingActive = true;
+      c._originalEdge = e;
+    }
+  }
+
+  /**
+   * Tick all repairing constraints — gradually restore distance & stiffness
+   */
+  function tickRepairs() {
+    for (var i = repairingConstraints.length - 1; i >= 0; i--) {
+      var c = repairingConstraints[i];
+      c._repairProgress = Math.min(1, c._repairProgress + REPAIR_SPEED);
+      var t = c._repairProgress;
+      /* Ease in-out */
+      var ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      c.distance = c._startDistance + (c._targetDistance - c._startDistance) * ease;
+      c.stiffness = 0.05 + (c._targetStiffness - 0.05) * ease;
+      if (t >= 1) {
+        /* Repair complete */
+        c.distance = c._targetDistance;
+        c.stiffness = c._targetStiffness;
+        c._repairing = false;
+        if (c._originalEdge) c._originalEdge._repairingActive = false;
+        repairingConstraints.splice(i, 1);
+      }
+    }
+  }
+
+  /**
+   * Check if a healer spider should trigger repairs at its current position
+   */
+  function tryHealerRepair(unit) {
+    if (unit.role !== 'healer') return;
+    if (unit.wrappingTarget !== null) return;
+    /* Cooldown */
+    if (!unit._repairCooldown) unit._repairCooldown = 0;
+    if (unit._repairCooldown > 0) { unit._repairCooldown--; return; }
+    /* Only repair when idle (not moving) */
+    if (unit.target) return;
+
+    var hx = unit.spider.thorax.pos.x;
+    var hy = unit.spider.thorax.pos.y;
+    var broken = findBrokenEdgesNear(hx, hy, REPAIR_RADIUS);
+    if (broken.length === 0) return;
+
+    /* Pick up to REPAIR_MAX_PER_TICK closest broken edges */
+    broken.sort(function (a, b) {
+      var amx = (a.a.pos.x + a.b.pos.x) * 0.5 - hx;
+      var amy = (a.a.pos.y + a.b.pos.y) * 0.5 - hy;
+      var bmx = (b.a.pos.x + b.b.pos.x) * 0.5 - hx;
+      var bmy = (b.a.pos.y + b.b.pos.y) * 0.5 - hy;
+      return (amx * amx + amy * amy) - (bmx * bmx + bmy * bmy);
+    });
+    var toRepair = broken.slice(0, REPAIR_MAX_PER_TICK);
+    startRepairEdges(toRepair);
+    unit._repairCooldown = REPAIR_COOLDOWN;
   }
 
   /* ── Stick system helpers ── */
@@ -991,6 +1127,10 @@ window.onload = function () {
     tryCollectObjects();
     updateThrownObjects();
     if (pendingLevelCheck) { pendingLevelCheck = false; checkLevelComplete(); }
+
+    /* healer repair system */
+    for (var hi = 0; hi < spiderUnits.length; hi++) tryHealerRepair(spiderUnits[hi]);
+    tickRepairs();
 
     /* blink — each spider independently */
     for (var bi = 0; bi < spiderUnits.length; bi++) updateBlink(spiderUnits[bi].blinkState);

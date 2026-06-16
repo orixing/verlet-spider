@@ -155,6 +155,12 @@ export function setupWebDraw(spiderweb, getThrownObjects, getWebBreakFlashes, ge
           }
           ctx.strokeStyle = 'rgba(' + strokeR + ',' + strokeG + ',' + strokeB + ',' + strokeA + ')';
           ctx.lineWidth = strokeW;
+        } else if (c._repairing) {
+          /* Repairing line: white glow, pulsing */
+          var rp = c._repairProgress || 0;
+          var pulse = 0.5 + 0.5 * Math.sin(now * 0.006 + rp * 10);
+          ctx.strokeStyle = 'rgba(220,240,255,' + (0.5 + pulse * 0.4) + ')';
+          ctx.lineWidth = 1.2 + pulse * 1.0;
         } else {
           ctx.strokeStyle = "rgba(230,230,230,0.55)"; ctx.lineWidth = 0.8;
         }

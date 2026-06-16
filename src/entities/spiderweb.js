@@ -51,6 +51,20 @@ export function createSpiderweb(sim, origin, radius, segments, depth, stiffness,
 
   for (c in comp.constraints) comp.constraints[c].distance *= tensor;
 
+  /* ── 保存原始拓扑快照（用于修复） ── */
+  comp._originalEdges = [];
+  for (i = 0; i < comp.constraints.length; i++) {
+    var dc = comp.constraints[i];
+    if (dc instanceof DistanceConstraint) {
+      comp._originalEdges.push({
+        a: dc.a,
+        b: dc.b,
+        distance: dc.distance,
+        stiffness: dc.stiffness
+      });
+    }
+  }
+
   sim.composites.push(comp);
   return comp;
 }
