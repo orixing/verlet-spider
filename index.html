@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Verlet Spider — Panel V3.1</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+</head>
+<body>
+<h1>Verlet Spiderweb &mdash; 4 Legs &nbsp;|&nbsp; Panel V3.1</h1>
+<div class="layout">
+
+  <!-- LEFT PANEL -->
+  <div class="panel">
+    <div class="panel-title">参数控制</div>
+
+    <div class="group-title">蜘蛛网</div>
+    <div class="row">
+      <label>网半径系数 <span id="lbl-webRadius">1.45</span></label>
+      <input type="range" id="sl-webRadius" min="0.5" max="2.2" step="0.05" value="1.45">
+    </div>
+    <div class="row">
+      <label>辐射节点数 <span id="lbl-webSegs">30</span></label>
+      <input type="range" id="sl-webSegs" min="8" max="50" step="1" value="30">
+    </div>
+    <div class="row">
+      <label>圈数 <span id="lbl-webDepth">11</span></label>
+      <input type="range" id="sl-webDepth" min="3" max="18" step="1" value="11">
+    </div>
+    <div class="row">
+      <label>网刚度 <span id="lbl-webStiff">0.6</span></label>
+      <input type="range" id="sl-webStiff" min="0.1" max="1.0" step="0.05" value="0.6">
+    </div>
+    <button class="btn btn-secondary" id="btn-rebuild">&#x1f578; 重建网</button>
+
+    <div class="divider"></div>
+    <div class="group-title">蜘蛛运动</div>
+    <div class="row">
+      <label>移动速度 <span id="lbl-moveSpeed">1.8</span></label>
+      <input type="range" id="sl-moveSpeed" min="0.3" max="6" step="0.1" value="1.8">
+    </div>
+    <div class="row">
+      <label>步伐速度 <span id="lbl-stepSpeed">0.18</span></label>
+      <input type="range" id="sl-stepSpeed" min="0.04" max="0.5" step="0.01" value="0.18">
+    </div>
+    <div class="row">
+      <label>步伐阈值 <span id="lbl-stepThresh">22</span></label>
+      <input type="range" id="sl-stepThresh" min="5" max="60" step="1" value="22">
+    </div>
+    <div class="row">
+      <label>静止容忍 <span id="lbl-restThresh">50</span></label>
+      <input type="range" id="sl-restThresh" min="20" max="120" step="2" value="50">
+    </div>
+
+    <div class="divider"></div>
+    <div class="group-title">腿部物理</div>
+    <div class="row">
+      <label>腿段刚度 <span id="lbl-legStiff">0.3</span></label>
+      <input type="range" id="sl-legStiff" min="0.05" max="1.0" step="0.05" value="0.3">
+    </div>
+    <div class="row">
+      <label>关节刚度 <span id="lbl-jointStiff">0.35</span></label>
+      <input type="range" id="sl-jointStiff" min="0.05" max="1.0" step="0.05" value="0.35">
+    </div>
+
+    <div class="divider"></div>
+    <button class="btn btn-secondary" id="btn-save">&#x1f4be; 保存参数</button>
+    <button class="btn btn-danger"    id="btn-reset">&#x1f504; 重置默认</button>
+    <div class="save-hint" id="save-hint"></div>
+  </div>
+
+  <!-- CENTER STAGE -->
+  <div class="stage">
+    <div class="screen-shell">
+      <div class="inventory-bar" id="inventory-bar">
+        <div class="inventory-slot" id="inv-boulder">
+          <canvas class="inventory-art" id="inv-boulder-art" width="34" height="34"></canvas>
+          <div class="inventory-count" id="inv-boulder-count">0</div>
+        </div>
+        <div class="inventory-slot" id="inv-bug">
+          <canvas class="inventory-art" id="inv-bug-art" width="34" height="34"></canvas>
+          <div class="inventory-count" id="inv-bug-count">0</div>
+        </div>
+        <div class="inventory-slot" id="inv-drop">
+          <canvas class="inventory-art" id="inv-drop-art" width="34" height="34"></canvas>
+          <div class="inventory-count" id="inv-drop-count">0</div>
+        </div>
+      </div>
+
+      <!-- Wave HUD -->
+      <div class="wave-bar" id="wave-bar" style="display:none">Wave 1 &nbsp;·&nbsp; <span id="wave-timer-txt">30</span>s</div>
+      <div class="score-bar" id="score-bar" style="display:none">Score: <span id="score-txt">0</span></div>
+      <div class="dbg-web" id="dbg-web"></div>
+
+      <!-- Game Overlay -->
+      <div class="game-overlay" id="game-overlay">
+        <div class="overlay-card" id="overlay-card">
+          <!-- content injected by JS -->
+        </div>
+      </div>
+
+      <div class="collect-layer" id="collect-layer"></div>
+      <canvas id="scratch" style="width:450px;height:800px;"></canvas>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel">
+    <div class="panel-title">投放物体</div>
+    <div class="hint-text">点击按钮，物体从顶部落下，粘在网上后自动挣脱</div>
+
+    <div class="divider"></div>
+    <button class="btn btn-launch" id="btn-boulder">&#x1f41b; 毛毛虫 <span class="badge" id="cnt-boulder">0</span></button>
+    <div class="hint-text">从顶部快速垂直下落，粘网后约 3 秒挣脱</div>
+
+    <button class="btn btn-launch" id="btn-bug">&#x1fab0; 苍蝇 <span class="badge" id="cnt-bug">0</span></button>
+    <div class="hint-text">从四面八方飞来，粘网后约 2 秒挣脱</div>
+
+    <button class="btn btn-launch" id="btn-drop">&#x1f343; 树叶 <span class="badge" id="cnt-drop">0</span></button>
+    <div class="hint-text">柔和飘落，粘网后永久停留并拖慢蜘蛛</div>
+
+    <div class="divider"></div>
+    <button class="btn btn-danger" id="btn-clearObj">&#x2715; 清除所有投放物</button>
+
+    <div class="divider"></div>
+    <div class="group-title">粘网规则</div>
+    <div class="row">
+      <label>最短深入 <span id="lbl-stickDelayMin">0.10</span></label>
+      <input type="range" id="sl-stickDelayMin" min="0" max="0.6" step="0.01" value="0.10">
+    </div>
+    <div class="row">
+      <label>最长深入 <span id="lbl-stickDelayMax">0.45</span></label>
+      <input type="range" id="sl-stickDelayMax" min="0.05" max="0.95" step="0.01" value="0.45">
+    </div>
+    <div class="row">
+      <label>捕捉半径 <span id="lbl-stickCatchRadius">18</span></label>
+      <input type="range" id="sl-stickCatchRadius" min="6" max="40" step="1" value="18">
+    </div>
+    <div class="row">
+      <label>中部偏好 <span id="lbl-stickMidBias">0.8</span></label>
+      <input type="range" id="sl-stickMidBias" min="0" max="2" step="0.1" value="0.8">
+    </div>
+    <div class="row">
+      <label>候选记忆 <span id="lbl-stickHistory">40</span></label>
+      <input type="range" id="sl-stickHistory" min="5" max="120" step="1" value="40">
+    </div>
+
+    <div class="divider"></div>
+    <div class="group-title">物体参数</div>
+    <div class="row">
+      <label>毛毛虫重力 <span id="lbl-caterpillarGravity">2</span></label>
+      <input type="range" id="sl-caterpillarGravity" min="0.2" max="4" step="0.1" value="2">
+    </div>
+    <div class="row">
+      <label>毛毛虫重量 <span id="lbl-caterpillarWeight">5</span></label>
+      <input type="range" id="sl-caterpillarWeight" min="1" max="10" step="1" value="5">
+    </div>
+    <div class="row">
+      <label>苍蝇重量 <span id="lbl-flyWeight">3</span></label>
+      <input type="range" id="sl-flyWeight" min="1" max="10" step="1" value="3">
+    </div>
+    <div class="row">
+      <label>树叶重量 <span id="lbl-leafWeight">1</span></label>
+      <input type="range" id="sl-leafWeight" min="1" max="10" step="1" value="1">
+    </div>
+    <div class="row">
+      <label>毛毛虫挣脱秒数 <span id="lbl-caterpillarReleaseSec">3</span></label>
+      <input type="range" id="sl-caterpillarReleaseSec" min="0" max="10" step="0.5" value="3">
+    </div>
+    <div class="row">
+      <label>苍蝇挣脱秒数 <span id="lbl-flyReleaseSec">2</span></label>
+      <input type="range" id="sl-flyReleaseSec" min="0" max="10" step="0.5" value="2">
+    </div>
+    <div class="row">
+      <label>树叶挣脱秒数 <span id="lbl-leafReleaseSec">0</span></label>
+      <input type="range" id="sl-leafReleaseSec" min="0" max="10" step="0.5" value="0">
+    </div>
+
+    <div class="divider"></div>
+    <div class="panel-title">说明</div>
+    <div class="hint-text">
+      点击画布：蜘蛛移动到该点<br>
+      拖拽网节点：扰动蜘蛛网<br>
+      参数实时生效，网类参数自动重建
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
