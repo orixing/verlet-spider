@@ -66,10 +66,40 @@
     <button class="btn btn-secondary" id="btn-save">&#x1f4be; 保存参数</button>
     <button class="btn btn-danger"    id="btn-reset">&#x1f504; 重置默认</button>
     <div class="save-hint" id="save-hint"></div>
+
+    <div class="divider"></div>
+    <div class="group-title">背景与音乐</div>
+
+    <div class="row" style="flex-direction:row;align-items:center;gap:5px;margin-bottom:7px;">
+      <div class="bg-theme-dots" id="bg-theme-dots"></div>
+    </div>
+
+    <div class="row">
+      <label>模糊 <span id="lbl-bgBlur">100%</span></label>
+      <input type="range" id="sl-bgBlur" min="20" max="200" step="5" value="100">
+    </div>
+    <div class="row">
+      <label>风速 <span id="lbl-bgWind">1.0</span></label>
+      <input type="range" id="sl-bgWind" min="0" max="4" step="0.1" value="1.0">
+    </div>
+    <div class="row">
+      <label>光束 <span id="lbl-bgRay">55%</span></label>
+      <input type="range" id="sl-bgRay" min="0" max="200" step="5" value="55">
+    </div>
+    <div class="row">
+      <label>孢子 <span id="lbl-bgPart">40</span></label>
+      <input type="range" id="sl-bgPart" min="0" max="100" step="2" value="40">
+    </div>
+    <div class="row">
+      <label>音量 <span id="lbl-bgVol">60%</span></label>
+      <input type="range" id="sl-bgVol" min="0" max="100" step="1" value="60">
+    </div>
+    <button class="btn btn-secondary" id="bg-bgm-toggle">🔊 音乐开关</button>
   </div>
 
   <!-- CENTER STAGE -->
   <div class="stage">
+
     <div class="screen-shell">
       <div class="inventory-bar" id="inventory-bar">
         <div class="inventory-slot" id="inv-boulder">

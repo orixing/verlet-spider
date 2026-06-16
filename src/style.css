@@ -28,11 +28,15 @@ h1{
 .stage{
   width:450px;
   flex-shrink:0;
+  position:relative;
 }
 .screen-shell{
   position:relative;
   width:450px;
   height:800px;
+  overflow:hidden;
+  border-radius:4px;
+  background:transparent;
 }
 .inventory-bar{
   display:flex;
@@ -43,7 +47,7 @@ h1{
   left:0;
   right:0;
   top:10px;
-  z-index:4;
+  z-index:6;
 }
 .inventory-slot{
   display:flex;
@@ -65,10 +69,10 @@ h1{
 }
 .inventory-count{
   font-size:0.95em;
-  color:#1f1f1f;
+  color:#f0f0e8;
   font-weight:600;
   line-height:1;
-  text-shadow:0 1px 0 rgba(255,255,255,0.35);
+  text-shadow:0 1px 4px rgba(0,0,0,0.8);
   transition:transform 0.1s, color 0.15s;
 }
 @keyframes hudCountBounce{
@@ -94,7 +98,7 @@ h1{
   inset:0;
   pointer-events:none;
   overflow:hidden;
-  z-index:5;
+  z-index:7;
 }
 /* ── Wave HUD overlays ── */
 .wave-bar{
@@ -102,31 +106,31 @@ h1{
   top:80px;
   left:0;right:0;
   text-align:center;
-  z-index:4;
+  z-index:6;
   pointer-events:none;
   font-size:0.78em;
   font-weight:600;
   letter-spacing:1.5px;
-  color:rgba(255,255,255,0.88);
-  text-shadow:0 1px 4px rgba(0,0,0,0.5);
+  color:rgba(255,255,255,0.95);
+  text-shadow:0 1px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.5);
 }
 .score-bar{
   position:absolute;
   bottom:16px;
   right:16px;
-  z-index:4;
+  z-index:6;
   pointer-events:none;
   font-size:0.85em;
   font-weight:700;
-  color:rgba(255,255,255,0.9);
-  text-shadow:0 1px 4px rgba(0,0,0,0.55);
+  color:rgba(255,255,255,0.95);
+  text-shadow:0 1px 6px rgba(0,0,0,0.85);
   letter-spacing:1px;
 }
 .dbg-web{
   position:absolute;
   bottom:16px;
   left:16px;
-  z-index:4;
+  z-index:6;
   pointer-events:none;
   font-size:0.72em;
   font-weight:600;
@@ -138,6 +142,7 @@ h1{
   position:absolute;
   inset:0;
   z-index:9;
+  border-radius:4px;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -279,12 +284,13 @@ h1{
 canvas{
   position:absolute;
   inset:0;
-  z-index:1;
-  border:1px solid rgba(80,80,80,0.3);
+  z-index:5;
+  border:none;
   border-radius:4px;
   cursor:crosshair;
   display:block;
   flex-shrink:0;
+  background:transparent;
 }
 .panel{
   width:195px;
@@ -366,3 +372,27 @@ input[type=range]{
 }
 .hint-text{font-size:0.61em;color:#888;line-height:1.4;margin-bottom:5px;}
 .save-hint{font-size:0.65em;color:#2a7a2a;height:16px;margin-top:2px;}
+
+/* ── 背景主题色点（左侧参数面板内） ── */
+.bg-theme-dots{
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+}
+.bg-theme-dot{
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  border:2px solid rgba(100,100,100,0.3);
+  cursor:pointer;
+  transition:transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  flex-shrink:0;
+}
+.bg-theme-dot:hover{ transform:scale(1.2); }
+.bg-theme-dot.active{
+  border-color:#555;
+  transform:scale(1.25);
+  box-shadow:0 0 5px rgba(0,0,0,0.4);
+}
+.btn.bgm-on{ background:rgba(60,110,60,0.35); color:#2a5a2a; border:1px solid rgba(60,130,60,0.4); }
+.btn.bgm-on:hover{ background:rgba(60,130,60,0.5); }
