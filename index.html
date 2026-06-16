@@ -71,19 +71,12 @@
   <!-- CENTER STAGE -->
   <div class="stage">
     <div class="screen-shell">
-      <div class="inventory-bar" id="inventory-bar">
-        <div class="inventory-slot" id="inv-boulder">
-          <canvas class="inventory-art" id="inv-boulder-art" width="34" height="34"></canvas>
-          <div class="inventory-count" id="inv-boulder-count">0</div>
+      <div class="food-bar-wrap" id="food-bar-wrap">
+        <div class="food-bar-label" id="food-bar-label">0 / 30</div>
+        <div class="food-bar-track">
+          <div class="food-bar-fill" id="food-bar-fill" style="width:0%"></div>
         </div>
-        <div class="inventory-slot" id="inv-bug">
-          <canvas class="inventory-art" id="inv-bug-art" width="34" height="34"></canvas>
-          <div class="inventory-count" id="inv-bug-count">0</div>
-        </div>
-        <div class="inventory-slot" id="inv-drop">
-          <canvas class="inventory-art" id="inv-drop-art" width="34" height="34"></canvas>
-          <div class="inventory-count" id="inv-drop-count">0</div>
-        </div>
+        <div class="food-bar-pop" id="food-bar-pop"></div>
       </div>
 
       <!-- Wave HUD -->
@@ -109,14 +102,11 @@
     <div class="hint-text">点击按钮，物体从顶部落下，粘在网上后自动挣脱</div>
 
     <div class="divider"></div>
-    <button class="btn btn-launch" id="btn-boulder">&#x1f41b; 毛毛虫 <span class="badge" id="cnt-boulder">0</span></button>
-    <div class="hint-text">从顶部快速垂直下落，粘网后约 3 秒挣脱</div>
-
     <button class="btn btn-launch" id="btn-bug">&#x1fab0; 苍蝇 <span class="badge" id="cnt-bug">0</span></button>
-    <div class="hint-text">从四面八方飞来，粘网后约 2 秒挣脱</div>
+    <div class="hint-text">从四面八方飞来，粘网后挣脱跳到新位置，持续破坏</div>
 
     <button class="btn btn-launch" id="btn-drop">&#x1f343; 树叶 <span class="badge" id="cnt-drop">0</span></button>
-    <div class="hint-text">柔和飘落，粘网后永久停留并拖慢蜘蛛</div>
+    <div class="hint-text">柔和飘落，粘网后永久停留，绿色蜘蛛采集</div>
 
     <div class="divider"></div>
     <button class="btn btn-danger" id="btn-clearObj">&#x2715; 清除所有投放物</button>
@@ -147,14 +137,6 @@
     <div class="divider"></div>
     <div class="group-title">物体参数</div>
     <div class="row">
-      <label>毛毛虫重力 <span id="lbl-caterpillarGravity">2</span></label>
-      <input type="range" id="sl-caterpillarGravity" min="0.2" max="4" step="0.1" value="2">
-    </div>
-    <div class="row">
-      <label>毛毛虫重量 <span id="lbl-caterpillarWeight">5</span></label>
-      <input type="range" id="sl-caterpillarWeight" min="1" max="10" step="1" value="5">
-    </div>
-    <div class="row">
       <label>苍蝇重量 <span id="lbl-flyWeight">3</span></label>
       <input type="range" id="sl-flyWeight" min="1" max="10" step="1" value="3">
     </div>
@@ -167,8 +149,8 @@
       <input type="range" id="sl-caterpillarReleaseSec" min="0" max="10" step="0.5" value="3">
     </div>
     <div class="row">
-      <label>苍蝇挣脱秒数 <span id="lbl-flyReleaseSec">2</span></label>
-      <input type="range" id="sl-flyReleaseSec" min="0" max="10" step="0.5" value="2">
+      <label>苍蝇挣脱秒数 <span id="lbl-flyReleaseSec">3</span></label>
+      <input type="range" id="sl-flyReleaseSec" min="0" max="10" step="0.5" value="3">
     </div>
     <div class="row">
       <label>树叶挣脱秒数 <span id="lbl-leafReleaseSec">0</span></label>

@@ -43,11 +43,8 @@ export function initPanel(P, DEFAULTS, callbacks) {
   bindSlider('stickCatchRadius', 'object', P, callbacks);
   bindSlider('stickMidBias', 'object', P, callbacks);
   bindSlider('stickHistory', 'object', P, callbacks);
-  bindSlider('caterpillarGravity', 'object', P, callbacks);
-  bindSlider('caterpillarWeight', 'object', P, callbacks);
   bindSlider('flyWeight', 'object', P, callbacks);
   bindSlider('leafWeight', 'object', P, callbacks);
-  bindSlider('caterpillarReleaseSec', 'object', P, callbacks);
   bindSlider('flyReleaseSec', 'object', P, callbacks);
   bindSlider('leafReleaseSec', 'object', P, callbacks);
 
@@ -75,7 +72,6 @@ export function initPanel(P, DEFAULTS, callbacks) {
   };
 
   /* 右面板按钮 */
-  document.getElementById('btn-boulder').onclick = function () { callbacks.launchObject('boulder'); };
   document.getElementById('btn-bug').onclick = function () { callbacks.launchObject('bug'); };
   document.getElementById('btn-drop').onclick = function () { callbacks.launchObject('drop'); };
   document.getElementById('btn-clearObj').onclick = callbacks.clearAllObjects;

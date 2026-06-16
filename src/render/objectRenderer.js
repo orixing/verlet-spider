@@ -20,38 +20,8 @@ export function drawThrownObjects(ctx, thrownObjects) {
       obj._wrapAngle = 0;
     }
 
-    /* ── 毛毛虫 ── */
-    if (obj.kind === 'boulder') {
-      ctx.save(); ctx.translate(px, py);
-      var drawAngle;
-      if (obj.state === 'falling') drawAngle = obj.initAngle;
-      else if (obj.state === 'sticking') drawAngle = obj.initAngle + (obj.stuckAngle - obj.initAngle) * obj.stickT;
-      else drawAngle = obj.stuckAngle || 0;
-      if (obj._wrapAngle) drawAngle = (drawAngle || 0) + obj._wrapAngle;
-      if (drawAngle) ctx.rotate(drawAngle);
-      var segs = 4, segR = def.r * 0.92, gap = segR * 1.45;
-      var waveScale = (obj.state === 'stuck' || obj.state === 'freeing') ? 1.0 : 0.12;
-      for (var si = 0; si < segs; si++) {
-        var sy2 = si * gap - (segs - 1) * gap * 0.5 + gap * 0.5;
-        var wave = Math.sin(obj.segT + si * 1.0) * 2.5 * waveScale;
-        var rv = Math.floor(160 + si * 22);
-        ctx.beginPath(); ctx.arc(wave, sy2, segR, 0, 2 * Math.PI);
-        ctx.fillStyle = 'rgb(' + rv + ',20,20)'; ctx.fill();
-        ctx.strokeStyle = 'rgba(80,0,0,0.45)'; ctx.lineWidth = 0.7; ctx.stroke();
-      }
-      var headY = -(segs - 1) * gap * 0.5 - gap * 0.15;
-      var headWave = Math.sin(obj.segT + segs * 1.0) * 2.5 * waveScale;
-      ctx.beginPath(); ctx.arc(headWave, headY, segR * 1.2, 0, 2 * Math.PI);
-      ctx.fillStyle = '#b81010'; ctx.fill();
-      ctx.strokeStyle = 'rgba(80,0,0,0.55)'; ctx.lineWidth = 0.8; ctx.stroke();
-      ctx.strokeStyle = 'rgba(120,0,0,0.75)'; ctx.lineWidth = 0.9;
-      ctx.beginPath(); ctx.moveTo(headWave - 2, headY - segR * 0.9); ctx.lineTo(headWave - 5, headY - segR * 1.8); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(headWave + 2, headY - segR * 0.9); ctx.lineTo(headWave + 5, headY - segR * 1.8); ctx.stroke();
-      ctx.restore();
-    }
-
     /* ── 苍蝇 ── */
-    else if (obj.kind === 'bug') {
+    if (obj.kind === 'bug') {
       ctx.save(); ctx.translate(px, py);
       ctx.rotate(obj.angle + Math.PI / 2 + (obj._wrapAngle || 0));
       var r = def.r;

@@ -1,9 +1,66 @@
 import { DistanceConstraint } from '../engine/constraints.js';
 
 /**
- * 设置蜘蛛的自定义绘制函数
+ * 颜色方案 — 按角色区分
+ * default: 原始黑色
+ * collector: 绿色
+ * fighter: 红色（预留）
+ * healer: 白色（预留）
  */
-export function setupSpiderDraw(spider, legConstraintCount, footState, blinkState, getWrappingTarget) {
+var COLOR_SCHEMES = {
+  default: {
+    legBone:   ['#1a1a1a', '#222', '#2a2a2a', '#333'],
+    legWrap:   '#2a2a2a',
+    legIdle:   '#333',
+    foot:      '#111',
+    thorax:    '#1a1a1a',
+    abdomen:   '#1a1a1a',
+    abdomenHL: 'rgba(255,255,255,0.08)',
+    eyeWhite:  '#f0f0c0',
+    eyePupil:  '#222'
+  },
+  collector: {
+    legBone:   ['#1a3a1a', '#1e4420', '#224e26', '#2a5a30'],
+    legWrap:   '#1e4420',
+    legIdle:   '#2a5a30',
+    foot:      '#0a2a0a',
+    thorax:    '#1a3a1a',
+    abdomen:   '#1a4018',
+    abdomenHL: 'rgba(120,255,120,0.10)',
+    eyeWhite:  '#c0f0c0',
+    eyePupil:  '#1a3a1a'
+  },
+  fighter: {
+    legBone:   ['#3a1a1a', '#441e1e', '#4e2222', '#5a2a2a'],
+    legWrap:   '#441e1e',
+    legIdle:   '#5a2a2a',
+    foot:      '#2a0a0a',
+    thorax:    '#3a1a1a',
+    abdomen:   '#401818',
+    abdomenHL: 'rgba(255,120,120,0.10)',
+    eyeWhite:  '#f0c0c0',
+    eyePupil:  '#3a1a1a'
+  },
+  healer: {
+    legBone:   ['#2a2a2a', '#3a3a3a', '#4a4a4a', '#5a5a5a'],
+    legWrap:   '#3a3a3a',
+    legIdle:   '#5a5a5a',
+    foot:      '#1a1a1a',
+    thorax:    '#3a3a3a',
+    abdomen:   '#444',
+    abdomenHL: 'rgba(255,255,255,0.15)',
+    eyeWhite:  '#f0f0f0',
+    eyePupil:  '#2a2a2a'
+  }
+};
+
+/**
+ * 设置蜘蛛的自定义绘制函数
+ * @param {string} role - 角色类型: 'default' | 'collector' | 'fighter' | 'healer'
+ */
+export function setupSpiderDraw(spider, legConstraintCount, footState, blinkState, getWrappingTarget, role) {
+  var C = COLOR_SCHEMES[role] || COLOR_SCHEMES['default'];
+
   spider.drawConstraints = function (ctx, comp) {
     var wrappingTarget = getWrappingTarget();
 
@@ -12,10 +69,10 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
       if (!(con instanceof DistanceConstraint)) continue;
       ctx.beginPath(); ctx.moveTo(con.a.pos.x, con.a.pos.y); ctx.lineTo(con.b.pos.x, con.b.pos.y);
       var s = 9, ip = (i - 3) % s;
-      if (ip <= 1) { ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 6; }
-      else if (ip <= 3) { ctx.strokeStyle = "#222"; ctx.lineWidth = 4; }
-      else if (ip <= 5) { ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 3; }
-      else { ctx.strokeStyle = "#333"; ctx.lineWidth = 2; }
+      if (ip <= 1) { ctx.strokeStyle = C.legBone[0]; ctx.lineWidth = 6; }
+      else if (ip <= 3) { ctx.strokeStyle = C.legBone[1]; ctx.lineWidth = 4; }
+      else if (ip <= 5) { ctx.strokeStyle = C.legBone[2]; ctx.lineWidth = 3; }
+      else { ctx.strokeStyle = C.legBone[3]; ctx.lineWidth = 2; }
       ctx.stroke();
     }
 
@@ -65,18 +122,18 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
 
       ctx.beginPath(); ctx.moveTo(fs.particle.pos.x, fs.particle.pos.y);
       ctx.lineTo(drawCX, drawCY);
-      ctx.strokeStyle = wrappingTarget ? "#2a2a2a" : "#333";
+      ctx.strokeStyle = wrappingTarget ? C.legWrap : C.legIdle;
       ctx.lineWidth = wrappingTarget ? 2.5 : 2;
       ctx.stroke();
       ctx.beginPath(); ctx.arc(drawCX, drawCY, wrappingTarget ? 2.5 : 1.8, 0, 2 * Math.PI);
-      ctx.fillStyle = "#111"; ctx.fill();
+      ctx.fillStyle = C.foot; ctx.fill();
     }
 
     var tx2 = spider.thorax.pos.x + thoraxDX, ty2 = spider.thorax.pos.y + thoraxDY;
-    ctx.beginPath(); ctx.arc(tx2, ty2, 4, 0, 2 * Math.PI); ctx.fillStyle = "#1a1a1a"; ctx.fill();
+    ctx.beginPath(); ctx.arc(tx2, ty2, 4, 0, 2 * Math.PI); ctx.fillStyle = C.thorax; ctx.fill();
     var ax2 = spider.abdomen.pos.x + abdomenDX, ay2 = spider.abdomen.pos.y + abdomenDY;
-    ctx.beginPath(); ctx.arc(ax2, ay2, 13.5, 0, 2 * Math.PI); ctx.fillStyle = "#1a1a1a"; ctx.fill();
-    ctx.beginPath(); ctx.arc(ax2, ay2 - 3, 4.5, 0, 2 * Math.PI); ctx.fillStyle = "rgba(255,255,255,0.08)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(ax2, ay2, 13.5, 0, 2 * Math.PI); ctx.fillStyle = C.abdomen; ctx.fill();
+    ctx.beginPath(); ctx.arc(ax2, ay2 - 3, 4.5, 0, 2 * Math.PI); ctx.fillStyle = C.abdomenHL; ctx.fill();
 
     var ax = ax2, ay = ay2;
     var tx = tx2, ty = ty2;
@@ -86,8 +143,8 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
 
     function drawEye(ex, ey) {
       ctx.save(); ctx.translate(ex, ey); ctx.scale(1, bs);
-      ctx.beginPath(); ctx.arc(0, 0, eyeR, 0, 2 * Math.PI); ctx.fillStyle = "#f0f0c0"; ctx.fill();
-      ctx.beginPath(); ctx.arc(0, 0, eyeR * 0.35, 0, 2 * Math.PI); ctx.fillStyle = "#222"; ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, eyeR, 0, 2 * Math.PI); ctx.fillStyle = C.eyeWhite; ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, eyeR * 0.35, 0, 2 * Math.PI); ctx.fillStyle = C.eyePupil; ctx.fill();
       ctx.restore();
     }
     drawEye(ecx + prx * 4, ecy + pry * 4);

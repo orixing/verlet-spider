@@ -5,25 +5,24 @@ import { Composite } from '../engine/Composite.js';
 import { audioEngine } from '../audio/audioEngine.js';
 
 /**
- * 获取物体定义参数
+ * 获取物体定义参数（boulder 已移除）
  */
 export function getObjectDef(kind, P, gameState, getLevelCfgFn, currentLevel) {
   var waveCfg = (gameState === 'LEVEL_ACTIVE' || gameState === 'LEVEL_INTRO')
     ? getLevelCfgFn(currentLevel) : null;
-  if (kind === 'boulder') return {
-    r: 7, collectRadius: 7, weight: P.caterpillarWeight,
-    stayFrames: Math.round((waveCfg ? waveCfg.catR : P.caterpillarReleaseSec) * 60),
-    gravity: P.caterpillarGravity, wrapDur: 120
-  };
-  if (kind === 'bug') return {
-    r: 9, collectRadius: 5, weight: P.flyWeight,
-    stayFrames: Math.round((waveCfg ? waveCfg.flyR : P.flyReleaseSec) * 60),
-    gravity: 0, wrapDur: 80
-  };
+  if (kind === 'bug') {
+    var flyScale = (waveCfg && waveCfg.flyReleaseScale) ? waveCfg.flyReleaseScale : 1;
+    return {
+      r: 9, collectRadius: 5, weight: P.flyWeight,
+      stayFrames: Math.round(P.flyReleaseSec * 60 * flyScale),
+      gravity: 0, wrapDur: 100  /* 攻击/打包时间 */
+    };
+  }
+  /* drop (leaf) */
   return {
     r: 14, collectRadius: 12, weight: P.leafWeight,
     stayFrames: Math.round(P.leafReleaseSec * 60),
-    gravity: 0.06, wrapDur: 50
+    gravity: 0.06, wrapDur: 100
   };
 }
 
@@ -47,9 +46,7 @@ export function ThrownObj(kind, W, H, sim, P, gameState, getLevelCfgFn, currentL
   this.freeTimer = 0;
   this.angle = 0;
   this.wingT = 0;
-  this.segT = 0;
   this.grav = 0.3;
-  this.initAngle = 0;
   this.angleVel = 0;
   this.prevX = 0; this.prevY = 0;
   this.stuckAngle = 0;
@@ -72,11 +69,7 @@ export function ThrownObj(kind, W, H, sim, P, gameState, getLevelCfgFn, currentL
 
   var sx, sy, svx = 0, svy = 0;
 
-  if (kind === 'boulder') {
-    sx = W * 0.15 + Math.random() * W * 0.7; sy = -2;
-    this.grav = def.gravity;
-    this.initAngle = (Math.random() - 0.5) * Math.PI * 0.6;
-  } else if (kind === 'bug') {
+  if (kind === 'bug') {
     var edge = Math.floor(Math.random() * 4);
     if (edge === 0) { sx = -20; sy = H * 0.05 + Math.random() * H * 0.9; svx = 2.2 + Math.random() * 1.2; svy = (Math.random() - 0.5) * 2; }
     else if (edge === 1) { sx = W + 20; sy = H * 0.05 + Math.random() * H * 0.9; svx = -2.2 - Math.random() * 1.2; svy = (Math.random() - 0.5) * 2; }
@@ -96,6 +89,7 @@ export function ThrownObj(kind, W, H, sim, P, gameState, getLevelCfgFn, currentL
     this.baseVx = dx0 / dd0 * 2.5;
     this.baseVy = dy0 / dd0 * 2.5;
   } else {
+    /* drop (leaf) */
     sx = W * 0.15 + Math.random() * W * 0.7; sy = -5;
     this.grav = def.gravity;
     this.vx = 0; this.vy = 0;
@@ -147,11 +141,7 @@ ThrownObj.prototype.stickToPoint = function (pt, spiderweb) {
   this.stuckOnConstraint = pt.c;
   var radial = Math.min(1, pt.radial || 0);
   this.stayFrames = Math.max(30, Math.round(this.def.stayFrames * (1 - radial / 3)));
-  if (this.kind === 'boulder') {
-    this.stuckAngle = Math.random() * Math.PI * 2;
-  } else {
-    this.stuckAngle = 0;
-  }
+  this.stuckAngle = 0;
   this.state = 'sticking'; this.stickT = 0;
 
   /* 粘网冲击 */
@@ -168,30 +158,31 @@ ThrownObj.prototype.stickToPoint = function (pt, spiderweb) {
   return true;
 };
 
+/**
+ * 苍蝇挣脱 — 断开粘附点，飞向网内新位置（不飞出屏幕）
+ * 树叶挣脱 — 不会挣脱（stayFrames=0），但保留 fallback
+ */
 ThrownObj.prototype.release = function (spiderweb, webBreakFlashes, _breakFrame) {
   var p = this.particle;
-  var currentVx = p.pos.x - p.lastPos.x;
-  var currentVy = p.pos.y - p.lastPos.y;
   clearObjectConstraints(this);
   audioEngine.playSfxEscape();
 
+  /* 断开粘附网线 + 区域破坏 + 红闪 */
   if (this.stuckOnConstraint) {
     var bc = this.stuckOnConstraint;
-    if (this.kind !== 'drop') {
-      webBreakFlashes.push({
-        ax: bc.a.pos.x, ay: bc.a.pos.y,
-        bx: bc.b.pos.x, by: bc.b.pos.y,
-        t: _breakFrame
-      });
-    }
+    webBreakFlashes.push({
+      ax: bc.a.pos.x, ay: bc.a.pos.y,
+      bx: bc.b.pos.x, by: bc.b.pos.y,
+      t: _breakFrame
+    });
     var wi = spiderweb.constraints.indexOf(bc);
     if (wi !== -1) spiderweb.constraints.splice(wi, 1);
     this.stuckOnConstraint = null;
   }
 
-  /* 毛毛虫额外破坏 */
-  if (this.kind === 'boulder') {
-    var bpx = p.pos.x, bpy = p.pos.y, breakR2 = 32 * 32;
+  /* 苍蝇挣脱：破坏周围 24px 半径内的网线 */
+  if (this.kind === 'bug') {
+    var bpx = p.pos.x, bpy = p.pos.y, breakR2 = 24 * 24;
     var removed = [];
     spiderweb.constraints = spiderweb.constraints.filter(function (c) {
       if (!(c instanceof DistanceConstraint)) return true;
@@ -210,20 +201,28 @@ ThrownObj.prototype.release = function (spiderweb, webBreakFlashes, _breakFrame)
     }
   }
 
-  var W = this._W, H = this._H; // set by main when creating
+  var W = this._W, H = this._H;
 
   if (this.kind === 'bug') {
+    /* ── 苍蝇：飞向网内随机新位置，重新粘网 ── */
     this.state = 'falling';
     this.grav = 0;
     this.enteredWebZone = false;
     this.hitHistory = [];
     this.penetrationDist = 0;
-    this.released = true;
+    this.released = false; /* NOT released — will re-stick */
+    this.stayTimer = 0;
+    this.wobbleAmp = 0;
     this._releaseFrame = this.animT;
-    var escapeAngle = Math.atan2(p.pos.y - H / 2, p.pos.x - W / 2) + (Math.random() - 0.5) * 1.2;
-    var escapeSpeed = 4 + Math.random() * 2.5;
-    this.baseVx = Math.cos(escapeAngle) * escapeSpeed;
-    this.baseVy = Math.sin(escapeAngle) * escapeSpeed;
+
+    /* 目标：网中心附近随机点 */
+    var targetX = W * 0.25 + Math.random() * W * 0.5;
+    var targetY = H * 0.25 + Math.random() * H * 0.5;
+    var dx = targetX - p.pos.x, dy = targetY - p.pos.y;
+    var dl = Math.sqrt(dx * dx + dy * dy) || 1;
+    var flySpeed = 3 + Math.random() * 2;
+    this.baseVx = (dx / dl) * flySpeed;
+    this.baseVy = (dy / dl) * flySpeed;
     this.buzzFreqX = 0.08 + Math.random() * 0.06;
     this.buzzFreqY = 0.07 + Math.random() * 0.05;
     this.buzzAmp = 10 + Math.random() * 8;
@@ -232,12 +231,12 @@ ThrownObj.prototype.release = function (spiderweb, webBreakFlashes, _breakFrame)
     p.lastPos.x = p.pos.x - this.baseVx;
     p.lastPos.y = p.pos.y - this.baseVy;
   } else {
+    /* drop: shouldn't happen (leaves don't escape), but fallback */
     this.state = 'falling2';
+    var currentVx = p.pos.x - p.lastPos.x;
+    var currentVy = p.pos.y - p.lastPos.y;
     p.lastPos.x = p.pos.x - currentVx;
-    var releaseKick = this.kind === 'boulder'
-      ? this.def.weight * 0.405
-      : this.def.weight * 0.45;
-    p.lastPos.y = p.pos.y - (currentVy + releaseKick);
+    p.lastPos.y = p.pos.y - (currentVy + this.def.weight * 0.45);
   }
 };
 

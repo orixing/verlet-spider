@@ -34,60 +34,54 @@ h1{
   width:450px;
   height:800px;
 }
-.inventory-bar{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:28px;
+/* ── Food progress bar ── */
+.food-bar-wrap{
   position:absolute;
-  left:0;
-  right:0;
-  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  top:12px;
   z-index:4;
-}
-.inventory-slot{
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:2px;
+  gap:4px;
+  pointer-events:none;
 }
-.inventory-art{
-  position:relative;
-  inset:auto;
-  z-index:auto;
-  width:34px;
-  height:34px;
-  flex-shrink:0;
-  border:none;
-  border-radius:0;
-  cursor:default;
-  background:transparent;
+.food-bar-label{
+  font-size:0.82em;
+  font-weight:700;
+  color:rgba(255,255,255,0.88);
+  letter-spacing:1px;
+  text-shadow:0 1px 4px rgba(0,0,0,0.6);
 }
-.inventory-count{
-  font-size:0.95em;
-  color:#1f1f1f;
-  font-weight:600;
-  line-height:1;
-  text-shadow:0 1px 0 rgba(255,255,255,0.35);
-  transition:transform 0.1s, color 0.15s;
+.food-bar-track{
+  width:200px;
+  height:10px;
+  background:rgba(0,0,0,0.35);
+  border-radius:5px;
+  border:1px solid rgba(255,255,255,0.15);
+  overflow:hidden;
 }
-@keyframes hudCountBounce{
-  0%  {transform:scale(1);}
-  35% {transform:scale(1.8);}
-  65% {transform:scale(0.9);}
-  100%{transform:scale(1);}
+.food-bar-fill{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg, #5aaa35, #8ad060);
+  border-radius:5px;
+  transition:width 0.25s ease-out;
+  box-shadow:0 0 6px rgba(120,220,80,0.4);
 }
-@keyframes hudIconPop{
-  0%  {filter:brightness(1) drop-shadow(0 0 0px rgba(255,220,80,0));}
-  30% {filter:brightness(2.2) drop-shadow(0 0 8px rgba(255,220,80,0.9));}
-  100%{filter:brightness(1) drop-shadow(0 0 0px rgba(255,220,80,0));}
+.food-bar-pop{
+  font-size:0.78em;
+  font-weight:700;
+  color:#ffe566;
+  text-shadow:0 1px 4px rgba(0,0,0,0.6);
+  min-height:1.1em;
+  transition:opacity 0.2s;
 }
-.inv-count-pop{
-  animation:hudCountBounce 0.35s ease-out forwards;
-  color:#ffe046 !important;
-}
-.inv-icon-pop{
-  animation:hudIconPop 0.4s ease-out forwards;
+@keyframes foodPopAnim{
+  0%  {opacity:1;transform:scale(1.4);}
+  60% {opacity:1;transform:scale(1.0);}
+  100%{opacity:0;transform:scale(0.8);}
 }
 .collect-layer{
   position:absolute;
