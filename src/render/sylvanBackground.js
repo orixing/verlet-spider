@@ -572,8 +572,10 @@ function _createEntities() {
   // 丁达尔光束
   for (var i = 0; i < 5; i++) lightRays.push(new LightRay());
 
-  // 孢子光斑粒子
-  for (var i = 0; i < bgConfig.particleCount; i++) bokehParticles.push(new Bokeh());
+  // 孢子光斑粒子（移动端关闭）
+  var _isMobileBg = navigator.maxTouchPoints > 1 || /iPhone|iPad|Android/i.test(navigator.userAgent);
+  var _particleTarget = _isMobileBg ? 0 : bgConfig.particleCount;
+  for (var i = 0; i < _particleTarget; i++) bokehParticles.push(new Bokeh());
 
   // 深景深大树 (6棵) — 与原版参数对齐
   var numDeep = 6;

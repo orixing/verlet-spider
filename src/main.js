@@ -57,6 +57,9 @@ var requestAnimFrame = window.requestAnimationFrame
   || window.mozRequestAnimationFrame
   || function (cb) { window.setTimeout(cb, 1000 / 60); };
 
+/* ── Mobile detection ── */
+var IS_MOBILE = navigator.maxTouchPoints > 1 || /iPhone|iPad|Android/i.test(navigator.userAgent);
+
 /* ================================================================
    MAIN
 ================================================================ */
@@ -75,7 +78,7 @@ window.onload = function () {
     caterpillarReleaseSec: 3, flyReleaseSec: 2, leafReleaseSec: 0,
     bgTheme: 0, bgBlur: 25, bgWind: 1.0, bgRay: 100,
     bgDarken: 15, bgPurity: 140, bgYOffset: 13,
-    bgPart: 48, bgVol: 50, bgMusicOn: 1, bgLayoutVersion: 3
+    bgPart: 24, bgVol: 50, bgMusicOn: 1, bgLayoutVersion: 3
   };
   var P = Object.assign({}, DEFAULTS);
   try {
@@ -302,12 +305,33 @@ window.onload = function () {
   );
   document.getElementById('btn-start-game').onclick = startGameFromBeginning;
 
-  /* click to move */
+  /* click to move (desktop) */
   canvas.addEventListener('click', function (e) {
     if (wrappingTarget !== null) return;
     var r = canvas.getBoundingClientRect();
     target = new Vec2((e.clientX - r.left) * (W / r.width), (e.clientY - r.top) * (H / r.height));
   });
+
+  /* tap to move (iOS / mobile) — touchend with no drag */
+  var _touchStartX = 0, _touchStartY = 0;
+  canvas.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 1) {
+      _touchStartX = e.touches[0].clientX;
+      _touchStartY = e.touches[0].clientY;
+    }
+  }, { passive: true });
+  canvas.addEventListener('touchend', function (e) {
+    if (wrappingTarget !== null) return;
+    if (e.changedTouches.length === 1) {
+      var t = e.changedTouches[0];
+      var ddx = t.clientX - _touchStartX;
+      var ddy = t.clientY - _touchStartY;
+      if (Math.sqrt(ddx * ddx + ddy * ddy) < 12) {
+        var r = canvas.getBoundingClientRect();
+        target = new Vec2((t.clientX - r.left) * (W / r.width), (t.clientY - r.top) * (H / r.height));
+      }
+    }
+  }, { passive: true });
 
   /* ── Game flow functions ── */
   function startGame() {
@@ -1090,14 +1114,25 @@ window.onload = function () {
   /* ================================================================
      MAIN LOOP
   ================================================================ */
-  var loop = function () {
+  var _lastTimestamp = 0;
+  var _bgFrame = 0;
+  var loop = function (timestamp) {
+    /* ── 时间差自适应物理步长 ── */
+    var delta = _lastTimestamp ? Math.min(timestamp - _lastTimestamp, 50) : 16.67;
+    _lastTimestamp = timestamp;
+    var physicsSteps = Math.max(1, Math.round(delta / 16.67));
+
     /* ── 弹性拖拽平滑阻尼 (每帧约逼近10%) ── */
     _smoothDrag.x += (_dragOffset.x - _smoothDrag.x) * 0.1;
     _smoothDrag.y += (_dragOffset.y - _smoothDrag.y) * 0.1;
 
     /* ── 更新 & 绘制 Sylvan 背景（始终运行，包括IDLE） ── */
+    _bgFrame++;
     updateSylvanBackground(1.0, sim.mouseDown, _smoothDrag, sim.mouse.x, sim.mouse.y);
-    renderSylvanBackground();
+    /* 移动端每 3 帧渲染一次背景（约 20fps），桌面端每帧渲染 */
+    if (!IS_MOBILE || _bgFrame % 3 === 0) {
+      renderSylvanBackground();
+    }
 
     if (gameState === 'IDLE' || gameState === 'GAME_OVER') {
       updateLevelTimer();
@@ -1172,11 +1207,11 @@ window.onload = function () {
     if (pendingLevelCheck) { pendingLevelCheck = false; checkLevelComplete(); }
 
     updateBlink();
-    sim.frame(16);
+    sim.frame(physicsSteps);
     sim.draw();
     drawThrownObjects(sim.ctx, thrownObjects);
     if (spider && spider.drawConstraints) spider.drawConstraints(sim.ctx, spider);
     requestAnimFrame(loop);
   };
-  loop();
+  requestAnimFrame(loop);
 };
