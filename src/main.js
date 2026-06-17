@@ -73,9 +73,9 @@ window.onload = function () {
     caterpillarGravity: 2.0,
     caterpillarWeight: 5, flyWeight: 3, leafWeight: 1,
     caterpillarReleaseSec: 3, flyReleaseSec: 2, leafReleaseSec: 0,
-    bgTheme: 0, bgBlur: 100, bgWind: 1.0, bgRay: 55,
-    bgDarken: 0, bgPurity: 100, bgYOffset: 10,
-    bgPart: 40, bgVol: 60, bgMusicOn: 1, bgLayoutVersion: 3
+    bgTheme: 0, bgBlur: 25, bgWind: 1.0, bgRay: 100,
+    bgDarken: 15, bgPurity: 140, bgYOffset: 13,
+    bgPart: 48, bgVol: 50, bgMusicOn: 1, bgLayoutVersion: 3
   };
   var P = Object.assign({}, DEFAULTS);
   try {
