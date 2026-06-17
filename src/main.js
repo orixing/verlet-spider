@@ -498,7 +498,7 @@ window.onload = function () {
       webWarmupFrames--;
       if (webWarmupFrames === 0) _buildWebGrid();
       var dbgEl = document.getElementById('dbg-web');
-      if (dbgEl) dbgEl.textContent = 'WEB DAMAGE 0%';
+      if (dbgEl) dbgEl.textContent = 'WEB 100%';
       return;
     }
     if (webGridBuildIdx < (webGridList ? webGridList.length : 0)) continueWebGridBuild();
@@ -507,7 +507,7 @@ window.onload = function () {
       if (webScanPending === 0) _scanWebCells();
     }
     var dbgEl = document.getElementById('dbg-web');
-    if (dbgEl) dbgEl.textContent = 'WEB DAMAGE ' + webLossPct + '%';
+    if (dbgEl) dbgEl.textContent = 'WEB ' + Math.max(0, Math.round(100 - webLossPct * 2)) + '%';
     if (webLossPct >= 50) showGameOver();
   }
 
