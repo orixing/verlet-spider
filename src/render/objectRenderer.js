@@ -1,11 +1,52 @@
 import flyUrl from '../assets/fly.png';
+import fly01Url from '../assets/fly01.png';
+import fly02Url from '../assets/fly02.png';
 import wormUrl from '../assets/worm.png';
+import worm00Url from '../assets/worm00.png';
+import worm01Url from '../assets/worm01.png';
+import worm02Url from '../assets/worm02.png';
+import leafUrl from '../assets/leaf.png';
 
 var flyImg = new Image();
 flyImg.src = flyUrl;
 
+var fly01Img = new Image();
+fly01Img.src = fly01Url;
+
+var fly02Img = new Image();
+fly02Img.src = fly02Url;
+
 var wormImg = new Image();
 wormImg.src = wormUrl;
+
+var worm00Img = new Image();
+worm00Img.src = worm00Url;
+
+var worm01Img = new Image();
+worm01Img.src = worm01Url;
+
+var worm02Img = new Image();
+worm02Img.src = worm02Url;
+
+var leafImg = new Image();
+leafImg.src = leafUrl;
+
+function getAnimatedFlyImage(obj) {
+  if (obj.state === 'falling' || obj.state === 'freeing') {
+    return (Math.floor(obj.animT / 6) % 2 === 0) ? fly01Img : fly02Img;
+  }
+  return flyImg;
+}
+
+function getAnimatedWormImage(obj) {
+  var seq = [worm00Img, worm01Img, worm02Img, worm01Img];
+  if (obj.state === 'freeing') {
+    // 挣脱时：快速播放
+    return seq[Math.floor(obj.freeTimer / 5) % seq.length];
+  }
+  // 默认状态：慢慢扭动（18 帧/格，约 3fps）
+  return seq[Math.floor(obj.animT / 18) % seq.length];
+}
 
 /**
  * 投掷物体绘制
@@ -38,10 +79,11 @@ export function drawThrownObjects(ctx, thrownObjects) {
       else drawAngle = obj.stuckAngle || 0;
       if (obj._wrapAngle) drawAngle = (drawAngle || 0) + obj._wrapAngle;
       ctx.rotate((drawAngle || 0) + Math.PI / 2);
-      if (wormImg.complete && wormImg.naturalWidth > 0) {
-        var wormW = def.r * 9.0;
-        var wormH = wormW * (wormImg.naturalHeight / wormImg.naturalWidth);
-        ctx.drawImage(wormImg, -wormW * 0.5, -wormH * 0.5, wormW, wormH);
+      var wormFrame = getAnimatedWormImage(obj);
+      if (wormFrame.complete && wormFrame.naturalWidth > 0) {
+        var wormW = def.r * 6.3;  // 9.0 × 0.7
+        var wormH = wormW * (wormFrame.naturalHeight / wormFrame.naturalWidth);
+        ctx.drawImage(wormFrame, -wormW * 0.5, -wormH * 0.5, wormW, wormH);
       } else {
         var segs = 4, segR = def.r * 0.92, gap = segR * 1.45;
         var waveScale = (obj.state === 'stuck' || obj.state === 'freeing') ? 1.0 : 0.12;
@@ -66,10 +108,11 @@ export function drawThrownObjects(ctx, thrownObjects) {
     else if (obj.kind === 'bug') {
       ctx.save(); ctx.translate(px, py);
       ctx.rotate(obj.angle + Math.PI / 2 + (obj._wrapAngle || 0));
-      if (flyImg.complete && flyImg.naturalWidth > 0) {
+      var flyFrame = getAnimatedFlyImage(obj);
+      if (flyFrame.complete && flyFrame.naturalWidth > 0) {
         var flyH = def.r * 4.32;
-        var flyW = flyH * (flyImg.naturalWidth / flyImg.naturalHeight);
-        ctx.drawImage(flyImg, -flyW * 0.5, -flyH * 0.5, flyW, flyH);
+        var flyW = flyH * (flyFrame.naturalWidth / flyFrame.naturalHeight);
+        ctx.drawImage(flyFrame, -flyW * 0.5, -flyH * 0.5, flyW, flyH);
       } else {
         var r = def.r;
         var wFlapBase = (obj.state === 'stuck' || obj.state === 'freeing' || obj.state === 'wrapping') ? 0.65 * 0.30 : 0.65;
@@ -93,23 +136,20 @@ export function drawThrownObjects(ctx, thrownObjects) {
     /* ── 树叶 ── */
     else if (obj.kind === 'drop') {
       ctx.save(); ctx.translate(px, py); ctx.rotate(obj.angle + (obj._wrapAngle || 0));
-      var r = def.r;
-      ctx.beginPath();
-      ctx.moveTo(0, -r * 1.6);
-      ctx.bezierCurveTo(r * 1.1, -r * 0.8, r * 1.1, r * 0.8, 0, r * 1.6);
-      ctx.bezierCurveTo(-r * 1.1, r * 0.8, -r * 1.1, -r * 0.8, 0, -r * 1.6);
-      ctx.closePath();
-      var lg = ctx.createLinearGradient(-r, 0, r, 0);
-      lg.addColorStop(0, '#3a7a25'); lg.addColorStop(0.5, '#5aaa35'); lg.addColorStop(1, '#3a7a25');
-      ctx.fillStyle = lg; ctx.fill();
-      ctx.strokeStyle = 'rgba(20,60,10,0.5)'; ctx.lineWidth = 0.8; ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, -r * 1.6); ctx.lineTo(0, r * 1.6);
-      ctx.strokeStyle = 'rgba(20,80,10,0.4)'; ctx.lineWidth = 0.8; ctx.stroke();
-      for (var vi = 0; vi < 4; vi++) {
-        var vy = -r * 0.9 + vi * r * 0.6;
-        ctx.beginPath(); ctx.moveTo(0, vy); ctx.lineTo(r * 0.75, vy - r * 0.2);
-        ctx.strokeStyle = 'rgba(20,80,10,0.25)'; ctx.lineWidth = 0.6; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, vy); ctx.lineTo(-r * 0.75, vy - r * 0.2); ctx.stroke();
+      if (leafImg.complete && leafImg.naturalWidth > 0) {
+        var leafW = def.r * 6.08;  // 3.8 × 1.6
+        var leafH = leafW * (leafImg.naturalHeight / leafImg.naturalWidth);
+        ctx.drawImage(leafImg, -leafW * 0.5, -leafH * 0.5, leafW, leafH);
+      } else {
+        var r = def.r;
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 1.6);
+        ctx.bezierCurveTo(r * 1.1, -r * 0.8, r * 1.1, r * 0.8, 0, r * 1.6);
+        ctx.bezierCurveTo(-r * 1.1, r * 0.8, -r * 1.1, -r * 0.8, 0, -r * 1.6);
+        ctx.closePath();
+        var lg = ctx.createLinearGradient(-r, 0, r, 0);
+        lg.addColorStop(0, '#3a7a25'); lg.addColorStop(0.5, '#5aaa35'); lg.addColorStop(1, '#3a7a25');
+        ctx.fillStyle = lg; ctx.fill();
       }
       ctx.restore();
     }

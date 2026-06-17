@@ -42,11 +42,11 @@ h1{
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:28px;
+  gap:16px;
   position:absolute;
   left:0;
   right:0;
-  top:10px;
+  top:8px;
   z-index:6;
 }
 .inventory-slot{
@@ -59,8 +59,8 @@ h1{
   position:relative;
   inset:auto;
   z-index:auto;
-  width:34px;
-  height:34px;
+  width:48px;
+  height:48px;
   flex-shrink:0;
   border:none;
   border-radius:0;

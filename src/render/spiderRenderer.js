@@ -1,8 +1,24 @@
 import { DistanceConstraint } from '../engine/constraints.js';
 import popoHeadUrl from '../assets/popo.png';
+import popoBlinkUrl from '../assets/popo_blink.png';
+import popoPackUrl from '../assets/popo_pack.png';
 
 var popoHeadImg = new Image();
 popoHeadImg.src = popoHeadUrl;
+
+var popoBlinkImg = new Image();
+popoBlinkImg.src = popoBlinkUrl;
+
+var popoPackImg = new Image();
+popoPackImg.src = popoPackUrl;
+
+function getSpiderHeadFrame(blinkState, wrappingTarget) {
+  if (wrappingTarget) return popoPackImg;
+  if (blinkState && blinkState.blinking && blinkState.t >= 0.35 && blinkState.t <= 1.35) {
+    return popoBlinkImg;
+  }
+  return popoHeadImg;
+}
 
 /**
  * 设置蜘蛛的自定义绘制函数
@@ -132,12 +148,13 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
     var fnx = fdx / fl, fny = fdy / fl, prx = -fny, pry = fnx;
 
     // Replace old spider body with provided image head while keeping size similar.
-    if (popoHeadImg.complete && popoHeadImg.naturalWidth > 0) {
+    var headFrame = getSpiderHeadFrame(blinkState, wrappingTarget);
+    if (headFrame.complete && headFrame.naturalWidth > 0) {
       var imgW = 36.8;
-      var imgH = imgW * (popoHeadImg.naturalHeight / popoHeadImg.naturalWidth);
+      var imgH = imgW * (headFrame.naturalHeight / headFrame.naturalWidth);
       var imgCX = ax + fnx * 4;
       var imgCY = ay + fny * 4;
-      ctx.drawImage(popoHeadImg, imgCX - imgW * 0.5, imgCY - imgH * 0.5, imgW, imgH);
+      ctx.drawImage(headFrame, imgCX - imgW * 0.5, imgCY - imgH * 0.5, imgW, imgH);
     }
   };
 

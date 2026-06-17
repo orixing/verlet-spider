@@ -1,11 +1,15 @@
 import flyUrl from '../assets/fly.png';
 import wormUrl from '../assets/worm.png';
+import leafUrl from '../assets/leaf.png';
 
 var flyImg = new Image();
 flyImg.src = flyUrl;
 
 var wormImg = new Image();
 wormImg.src = wormUrl;
+
+var leafImg = new Image();
+leafImg.src = leafUrl;
 
 /**
  * HUD 物品栏图标绘制
@@ -14,7 +18,7 @@ wormImg.src = wormUrl;
 export function drawInventoryBoulder(ctx, w, h) {
   ctx.clearRect(0, 0, w, h);
   if (wormImg.complete && wormImg.naturalWidth > 0) {
-    var drawW = 42;
+    var drawW = 29;  // 42 × 0.7
     var drawH = drawW * (wormImg.naturalHeight / wormImg.naturalWidth);
     ctx.drawImage(wormImg, (w - drawW) * 0.5, (h - drawH) * 0.5, drawW, drawH);
     return;
@@ -77,6 +81,12 @@ export function drawInventoryBug(ctx, w, h) {
 
 export function drawInventoryDrop(ctx, w, h) {
   ctx.clearRect(0, 0, w, h);
+  if (leafImg.complete && leafImg.naturalWidth > 0) {
+    var drawW = 30;
+    var drawH = drawW * (leafImg.naturalHeight / leafImg.naturalWidth);
+    ctx.drawImage(leafImg, (w - drawW) * 0.5, (h - drawH) * 0.5, drawW, drawH);
+    return;
+  }
   ctx.save();
   ctx.translate(w * 0.5, h * 0.5);
   ctx.rotate(0.22);
@@ -89,15 +99,6 @@ export function drawInventoryDrop(ctx, w, h) {
   var lg = ctx.createLinearGradient(-r, 0, r, 0);
   lg.addColorStop(0, '#3a7a25'); lg.addColorStop(0.5, '#5aaa35'); lg.addColorStop(1, '#3a7a25');
   ctx.fillStyle = lg; ctx.fill();
-  ctx.strokeStyle = 'rgba(20,60,10,0.5)'; ctx.lineWidth = 0.9; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0, -r * 1.6); ctx.lineTo(0, r * 1.6);
-  ctx.strokeStyle = 'rgba(20,80,10,0.4)'; ctx.lineWidth = 0.9; ctx.stroke();
-  for (var vi = 0; vi < 3; vi++) {
-    var vy = -r * 0.7 + vi * r * 0.7;
-    ctx.beginPath(); ctx.moveTo(0, vy); ctx.lineTo(r * 0.65, vy - r * 0.18);
-    ctx.strokeStyle = 'rgba(20,80,10,0.25)'; ctx.lineWidth = 0.7; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, vy); ctx.lineTo(-r * 0.65, vy - r * 0.18); ctx.stroke();
-  }
   ctx.restore();
 }
 
