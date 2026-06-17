@@ -105,14 +105,8 @@ VerletJS.prototype.frame = function (step) {
 
 VerletJS.prototype.draw = function () {
   var i, c;
-  var cx = this.width / 2, cy = this.height / 2, r = Math.sqrt(cx * cx + cy * cy);
-  var g = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-  /* 中心略暖灰，向外渐变到冷蓝灰 */
-  g.addColorStop(0, '#8c909a');
-  g.addColorStop(0.5, '#757c8c');
-  g.addColorStop(1, '#505870');
-  this.ctx.fillStyle = g;
-  this.ctx.fillRect(0, 0, this.width, this.height);
+  /* 透明画布 — 让底层 sylvan 背景层透出 */
+  this.ctx.clearRect(0, 0, this.width, this.height);
   for (c in this.composites) {
     if (this.composites[c].drawConstraints)
       this.composites[c].drawConstraints(this.ctx, this.composites[c]);
@@ -149,8 +143,10 @@ VerletJS.prototype.nearestEntity = function () {
       }
     }
   }
-  for (i in csN)
-    if (csN[i] instanceof PinConstraint && csN[i].a == entity)
-      entity = csN[i];
+  for (i in csN) {
+    if (csN[i] instanceof PinConstraint && csN[i].a == entity) {
+      return null;
+    }
+  }
   return entity;
 };

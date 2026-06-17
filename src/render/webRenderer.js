@@ -136,7 +136,7 @@ export function setupWebDraw(spiderweb, getThrownObjects, getWebBreakFlashes, ge
             var isRed = bfPhase < 0.5;
             if (isRed) { strokeR = 255; strokeG = 30; strokeB = 20; strokeA = 0.50; }
             else { strokeR = 230; strokeG = 230; strokeB = 230; strokeA = 0.55; }
-            strokeW = 0.8;
+            strokeW = 1.6;
           } else if (isDirect) {
             var flashHz = 1 + d * 7;
             var phase = (now / 1000 * flashHz) % 1;
@@ -145,13 +145,13 @@ export function setupWebDraw(spiderweb, getThrownObjects, getWebBreakFlashes, ge
             strokeG = Math.round(230 * (1 - d * 0.92));
             strokeB = Math.round(230 * (1 - d));
             strokeA = 0.4 + blink * (0.55 + d * 0.45);
-            strokeW = 0.8 + d * 2.5 + blink * d * 1.2;
+            strokeW = 1.6 + d * 5.0 + blink * d * 2.4;
           } else {
             strokeR = Math.round(230 + 25 * d);
             strokeG = Math.round(230 * (1 - d * 0.92));
             strokeB = Math.round(230 * (1 - d));
             strokeA = 0.3 + d * 0.5;
-            strokeW = 0.8 + d * 1.5;
+            strokeW = 1.6 + d * 3.0;
           }
           ctx.strokeStyle = 'rgba(' + strokeR + ',' + strokeG + ',' + strokeB + ',' + strokeA + ')';
           ctx.lineWidth = strokeW;
@@ -162,7 +162,7 @@ export function setupWebDraw(spiderweb, getThrownObjects, getWebBreakFlashes, ge
           ctx.strokeStyle = 'rgba(220,240,255,' + (0.5 + pulse * 0.4) + ')';
           ctx.lineWidth = 1.2 + pulse * 1.0;
         } else {
-          ctx.strokeStyle = "rgba(230,230,230,0.55)"; ctx.lineWidth = 0.8;
+          ctx.strokeStyle = "rgba(230,230,230,0.55)"; ctx.lineWidth = 1.6;
         }
         ctx.stroke();
       } else c.draw(ctx);

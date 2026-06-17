@@ -1,10 +1,21 @@
-/* Version: V4.0 — 3 Spiders + Battleheart Drag Control */
+/* Version: V4.1 — 3 Spiders + Battleheart Drag + Sylvan Background */
 import './style.css';
 
 import { Vec2 } from './engine/Vec2.js';
 import { DistanceConstraint } from './engine/constraints.js';
 import { Composite } from './engine/Composite.js';
 import { VerletJS } from './engine/VerletJS.js';
+
+import {
+  initSylvanBackground,
+  updateSylvanBackground,
+  renderSylvanBackground,
+  switchSylvanTheme,
+  bgConfig,
+  applyBgBlur,
+  setBgParticleCount,
+  THEMES as BG_THEMES
+} from './render/sylvanBackground.js';
 
 import { createSpiderweb } from './entities/spiderweb.js';
 import { createSpider } from './entities/spider.js';
@@ -50,6 +61,7 @@ var requestAnimFrame = window.requestAnimationFrame
 window.onload = function () {
 
   var NUM_SPIDERS = 3;
+  var WEB_SCALE = 1.2; /* 网放大 20% 以适配背景 */
 
   /* ── params ── */
   var DEFAULTS = {
@@ -59,10 +71,20 @@ window.onload = function () {
     stickDelayMin: 0.10, stickDelayMax: 0.45, stickCatchRadius: 18,
     stickMidBias: 0.8, stickHistory: 40,
     flyWeight: 3, leafWeight: 1,
-    flyReleaseSec: 5, leafReleaseSec: 0
+    flyReleaseSec: 5, leafReleaseSec: 0,
+    /* 背景与音乐 */
+    bgTheme: 0, bgBlur: 100, bgWind: 1.0, bgRay: 55, bgPart: 40, bgVol: 60,
+    bgMusicOn: 1, bgLayoutVersion: 1
   };
   var P = Object.assign({}, DEFAULTS);
-  try { Object.assign(P, JSON.parse(localStorage.getItem('spiderPanelParams') || '{}')); } catch (e) { }
+  try {
+    var saved = JSON.parse(localStorage.getItem('spiderPanelParams') || '{}');
+    /* 旧版本没有 bg 参数，重置避免异常 */
+    if (!saved.bgLayoutVersion) {
+      ['bgTheme','bgBlur','bgWind','bgRay','bgPart','bgVol','bgMusicOn','bgLayoutVersion'].forEach(function(k){ delete saved[k]; });
+    }
+    Object.assign(P, saved);
+  } catch (e) { }
 
   /* ── canvas ── */
   var screenShellEl = document.querySelector('.screen-shell');
@@ -76,6 +98,19 @@ window.onload = function () {
 
   var sim = new VerletJS(W, H, canvas);
   sim.gravity = new Vec2(0, 0);
+  initSylvanBackground(W, H, screenShellEl);
+
+  /* ── 拖拽视差状态 ── */
+  var _dragOffset = { x: 0, y: 0 };
+  var _smoothDrag = { x: 0, y: 0 };
+
+  /* ── 音频解锁（首次交互时恢复 AudioContext） ── */
+  function _unlockAudio() {
+    try { var ac = audioEngine.getAC && audioEngine.getAC(); if (ac && ac.state === 'suspended') ac.resume(); } catch(e){}
+    ['click','touchstart','keydown'].forEach(function(ev){ document.removeEventListener(ev, _unlockAudio); });
+  }
+  ['click','touchstart','keydown'].forEach(function(ev){ document.addEventListener(ev, _unlockAudio, { once: true }); });
+
   /* Disable VerletJS built-in drag (we handle input ourselves) */
   sim.canvas.onmousedown = null;
   sim.canvas.onmouseup = null;
@@ -116,7 +151,7 @@ window.onload = function () {
     var ov = webOverride || {};
     var segs = ov.segs || P.webSegs;
     var depth = ov.depth || P.webDepth;
-    var rad = ov.radius || Math.round(Math.min(W, H) / 2 * P.webRadius);
+    var rad = ov.radius || Math.round(Math.min(W, H) / 2 * P.webRadius * WEB_SCALE);
     var ocx = (ov.cx != null) ? ov.cx : cx;
     var ocy = (ov.cy != null) ? ov.cy : cy;
     var pStep = ov.pinStep || 4;
@@ -444,7 +479,7 @@ window.onload = function () {
   /* ── Game flow ── */
   function startGame() {
     spiderUnits.forEach(function (u) { u.wrappingTarget = null; u.target = null; });
-    audioEngine.startBGM();
+    /* BGM now managed by sylvan background system */
     totalScore = 0; currentLevel = 0; gameFrames = 0; levelScored = false;
     document.getElementById('score-txt').textContent = '0';
     document.getElementById('score-bar').style.display = 'block';
@@ -452,12 +487,14 @@ window.onload = function () {
     webOverride = {
       segs: 20 + Math.floor(Math.random() * 18),
       depth: 8 + Math.floor(Math.random() * 7),
-      radius: Math.round(Math.min(W, H) / 2 * (1.25 + Math.random() * 0.35)),
+      radius: Math.round(Math.min(W, H) / 2 * (1.25 + Math.random() * 0.35) * WEB_SCALE),
       cx: cx + (Math.random() - 0.5) * 40,
       cy: cy + (Math.random() - 0.5) * 40,
       pinStep: 3 + Math.floor(Math.random() * 4)
     };
     buildWeb(); buildSpiders();
+    /* BGM 由背景系统管理 */
+    if (P.bgMusicOn) audioEngine.playLevelBGM(P.bgTheme);
     startLevel(0);
   }
 
@@ -471,6 +508,8 @@ window.onload = function () {
     var cfg = getCfg(n);
     spawnIndex = 0;
     refreshFoodBar();
+    /* 切换背景主题 */
+    if (typeof switchSylvanTheme === 'function') switchSylvanTheme(n % BG_THEMES.length);
     gameState = 'LEVEL_ACTIVE'; hideOverlay();
     document.getElementById('wave-bar').style.display = 'block';
     levelTimer = 0;
@@ -508,7 +547,7 @@ window.onload = function () {
     gameFrames = 0;
     webOverride = {
       segs: 20 + Math.floor(Math.random() * 18), depth: 8 + Math.floor(Math.random() * 7),
-      radius: Math.round(Math.min(W, H) / 2 * (1.25 + Math.random() * 0.35)),
+      radius: Math.round(Math.min(W, H) / 2 * (1.25 + Math.random() * 0.35) * WEB_SCALE),
       cx: cx + (Math.random() - 0.5) * 40, cy: cy + (Math.random() - 0.5) * 40,
       pinStep: 3 + Math.floor(Math.random() * 4)
     };
@@ -874,9 +913,9 @@ window.onload = function () {
   }
 
   /* ── Stick system helpers ── */
-  function _radialRatioAt(x, y) { return radialRatioAt(x, y, W, H, P.webRadius); }
-  function _inWebZone(x, y) { return inWebZone(x, y, W, H, P.webRadius); }
-  function _getWebOuterR() { return getWebOuterR(W, H, P.webRadius); }
+  function _radialRatioAt(x, y) { return radialRatioAt(x, y, W, H, P.webRadius * WEB_SCALE); }
+  function _inWebZone(x, y) { return inWebZone(x, y, W, H, P.webRadius * WEB_SCALE); }
+  function _getWebOuterR() { return getWebOuterR(W, H, P.webRadius * WEB_SCALE); }
 
   /* ── updateThrownObjects (mostly unchanged, but wrapping completion uses per-unit) ── */
   function updateThrownObjects() {
@@ -1039,10 +1078,73 @@ window.onload = function () {
     launchObject: launchObject
   });
 
+  /* ── 背景控制面板初始化 ── */
+  (function initBgPanel() {
+    /* 主题色点 */
+    var dotsEl = document.getElementById('bg-theme-dots');
+    if (dotsEl) {
+      var themeColors = ['#5a8a5a','#c8a040','#7a5a8a','#d07a8a','#3a4a6a'];
+      for (var i = 0; i < BG_THEMES.length; i++) {
+        var dot = document.createElement('div');
+        dot.className = 'bg-theme-dot' + (i === P.bgTheme ? ' active' : '');
+        dot.style.background = themeColors[i] || '#888';
+        dot.dataset.idx = i;
+        dot.onclick = (function(idx, d) { return function() {
+          P.bgTheme = idx; switchSylvanTheme(idx);
+          dotsEl.querySelectorAll('.bg-theme-dot').forEach(function(dd){ dd.classList.remove('active'); });
+          d.classList.add('active');
+          if (P.bgMusicOn) audioEngine.playLevelBGM(idx);
+        }; })(i, dot);
+        dotsEl.appendChild(dot);
+      }
+    }
+    switchSylvanTheme(P.bgTheme);
+    /* 滑块 */
+    function bgSlider(id, prop, fn) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.value = P[prop]; var lbl = document.getElementById('lbl-' + prop);
+      if (lbl) lbl.textContent = P[prop];
+      el.addEventListener('input', function() {
+        P[prop] = parseFloat(this.value); if (lbl) lbl.textContent = P[prop]; if (fn) fn(P[prop]);
+      });
+    }
+    bgSlider('sl-bgBlur', 'bgBlur', function(v){ bgConfig.blurScale = v / 100; applyBgBlur(); });
+    bgSlider('sl-bgWind', 'bgWind', function(v){ bgConfig.windSpeed = v; });
+    bgSlider('sl-bgRay', 'bgRay', function(v){ bgConfig.rayOpacity = v / 100; });
+    bgSlider('sl-bgPart', 'bgPart', function(v){ setBgParticleCount(Math.round(v)); });
+    bgSlider('sl-bgVol', 'bgVol', function(v){ audioEngine.setVolume(v / 100); });
+    /* 应用初始值 */
+    bgConfig.blurScale = P.bgBlur / 100; applyBgBlur();
+    bgConfig.windSpeed = P.bgWind;
+    bgConfig.rayOpacity = P.bgRay / 100;
+    setBgParticleCount(Math.round(P.bgPart));
+    if (audioEngine.setVolume) audioEngine.setVolume(P.bgVol / 100);
+    /* BGM 开关 */
+    var bgmBtn = document.getElementById('bg-bgm-toggle');
+    if (bgmBtn) {
+      function updateBgmBtn() { bgmBtn.textContent = P.bgMusicOn ? 'BGM ON' : 'BGM OFF'; bgmBtn.className = 'btn ' + (P.bgMusicOn ? 'bgm-on' : 'btn-secondary'); }
+      updateBgmBtn();
+      bgmBtn.onclick = function() {
+        P.bgMusicOn = P.bgMusicOn ? 0 : 1;
+        if (P.bgMusicOn) audioEngine.playLevelBGM(P.bgTheme); else audioEngine.stopBGM();
+        updateBgmBtn();
+      };
+    }
+    /* 自动启动 BGM */
+    if (P.bgMusicOn) setTimeout(function(){ audioEngine.playLevelBGM(P.bgTheme); }, 500);
+  })();
+
   /* ================================================================
      MAIN LOOP
   ================================================================ */
   var loop = function () {
+    /* ── Sylvan 背景（始终运行，包括 IDLE） ── */
+    _smoothDrag.x += (_dragOffset.x - _smoothDrag.x) * 0.1;
+    _smoothDrag.y += (_dragOffset.y - _smoothDrag.y) * 0.1;
+    updateSylvanBackground(1.0, false, _smoothDrag, 0, 0);
+    renderSylvanBackground();
+
     if (gameState === 'IDLE' || gameState === 'GAME_OVER') {
       updateLevelTimer(); requestAnimFrame(loop); return;
     }
