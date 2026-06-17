@@ -163,8 +163,66 @@ window.onload = function () {
     setupWebDraw(spiderweb, function () { return thrownObjects; }, function () { return webBreakFlashes; }, function () { return _breakFrame; });
   }
 
-  /* ── Build all spiders ── */
-  function buildSpiders() {
+  /* ── Build spiders ── */
+  var ALL_ROLES = ['default', 'collector', 'healer'];
+
+  /**
+   * Create a single spider unit at a specific position with a role
+   * @returns the created unit
+   */
+  function addSpiderUnit(role, sx, sy) {
+    var spider = createSpider(sim, new Vec2(sx, sy), { legStiff: P.legStiff, jointStiff: P.jointStiff });
+    spider.thorax.pos.mutableSet(new Vec2(sx, sy)); spider.thorax.lastPos.mutableSet(new Vec2(sx, sy));
+    spider.head.pos.mutableSet(new Vec2(sx, sy - 6)); spider.head.lastPos.mutableSet(new Vec2(sx, sy - 6));
+    spider.abdomen.pos.mutableSet(new Vec2(sx, sy + 12)); spider.abdomen.lastPos.mutableSet(new Vec2(sx, sy + 12));
+
+    var legConstraintCount = spider.constraints.length;
+    var footState = spider.legs.map(function (lp, idx) {
+      var fa = (idx / 4) * Math.PI * 2 - Math.PI / 4;
+      var ip = new Vec2(sx + Math.cos(fa) * 25, sy + Math.sin(fa) * 25);
+      lp.pos.mutableSet(ip); lp.lastPos.mutableSet(ip);
+      return {
+        particle: lp, current: new Vec2(ip.x, ip.y), from: new Vec2(ip.x, ip.y),
+        targetPos: new Vec2(ip.x, ip.y), targetStepPoint: null,
+        landedNode: null, landedSeg: null, constraintA: null, constraintB: null,
+        stepping: false, t: 1, cooldown: idx * 6
+      };
+    });
+
+    var blinkState = makeBlinkState();
+    var unit = {
+      spider: spider, footState: footState, legConstraintCount: legConstraintCount,
+      blinkState: blinkState, role: role,
+      target: null, moveDir: null, wrappingTarget: null
+    };
+
+    setupSpiderDraw(spider, legConstraintCount, footState, blinkState, (function (u) {
+      return function () { return u.wrappingTarget; };
+    })(unit), role);
+
+    spiderUnits.push(unit);
+
+    /* Initial foot placement */
+    var delay = spiderUnits.length * 80;
+    (function (u) {
+      setTimeout(function () {
+        triggerStep(0, null, u.footState, spiderweb, u.spider, samplePoints, null, STEP_COOLDOWN);
+        triggerStep(2, null, u.footState, spiderweb, u.spider, samplePoints, null, STEP_COOLDOWN);
+      }, 60 + delay);
+      setTimeout(function () {
+        triggerStep(1, null, u.footState, spiderweb, u.spider, samplePoints, null, STEP_COOLDOWN);
+        triggerStep(3, null, u.footState, spiderweb, u.spider, samplePoints, null, STEP_COOLDOWN);
+      }, 210 + delay);
+    })(unit);
+
+    return unit;
+  }
+
+  /**
+   * Build spiders — optionally only specified roles
+   * @param {Array} [roles] - which roles to create, default all 3
+   */
+  function buildSpiders(roles) {
     /* Remove old spider composites */
     for (var si = 0; si < spiderUnits.length; si++) {
       var old = spiderUnits[si].spider;
@@ -173,76 +231,124 @@ window.onload = function () {
     spiderUnits = [];
     STEP_SPEED = P.stepSpeed; STEP_THRESH = P.stepThresh; REST_THRESH = P.restThresh;
 
-    /* Roles: default=fighter(black), collector=leaf-gatherer(green), healer=web-repair(white) */
-    var ROLES = ['default', 'collector', 'healer'];
+    var rolesToBuild = roles || ALL_ROLES;
+    var angleStep = (Math.PI * 2) / rolesToBuild.length;
+    var spawnRadius = rolesToBuild.length === 1 ? 0 : 40;
 
-    /* Spread initial positions around center */
-    var angleStep = (Math.PI * 2) / NUM_SPIDERS;
-    var spawnRadius = 40;
-
-    for (var i = 0; i < NUM_SPIDERS; i++) {
+    for (var i = 0; i < rolesToBuild.length; i++) {
       var angle = angleStep * i - Math.PI / 2;
       var sx = cx + Math.cos(angle) * spawnRadius;
       var sy = cy + Math.sin(angle) * spawnRadius;
-
-      var spider = createSpider(sim, new Vec2(sx, sy), { legStiff: P.legStiff, jointStiff: P.jointStiff });
-      spider.thorax.pos.mutableSet(new Vec2(sx, sy)); spider.thorax.lastPos.mutableSet(new Vec2(sx, sy));
-      spider.head.pos.mutableSet(new Vec2(sx, sy - 6)); spider.head.lastPos.mutableSet(new Vec2(sx, sy - 6));
-      spider.abdomen.pos.mutableSet(new Vec2(sx, sy + 12)); spider.abdomen.lastPos.mutableSet(new Vec2(sx, sy + 12));
-
-      var legConstraintCount = spider.constraints.length;
-
-      var footState = spider.legs.map(function (lp, idx) {
-        var fa = (idx / 4) * Math.PI * 2 - Math.PI / 4;
-        var ip = new Vec2(sx + Math.cos(fa) * 25, sy + Math.sin(fa) * 25);
-        lp.pos.mutableSet(ip); lp.lastPos.mutableSet(ip);
-        return {
-          particle: lp, current: new Vec2(ip.x, ip.y), from: new Vec2(ip.x, ip.y),
-          targetPos: new Vec2(ip.x, ip.y), targetStepPoint: null,
-          landedNode: null, landedSeg: null, constraintA: null, constraintB: null,
-          stepping: false, t: 1, cooldown: idx * 6
-        };
-      });
-
-      var blinkState = makeBlinkState();
-
-      var role = ROLES[i] || 'default';
-
-      var unit = {
-        spider: spider,
-        footState: footState,
-        legConstraintCount: legConstraintCount,
-        blinkState: blinkState,
-        role: role,         /* 'default' | 'collector' | 'fighter' | 'healer' */
-        target: null,       /* Vec2 or null */
-        moveDir: null,      /* Vec2 or null */
-        wrappingTarget: null /* ThrownObj or null */
-      };
-
-      /* Setup renderer — each spider gets its own draw closure + role color */
-      setupSpiderDraw(spider, legConstraintCount, footState, blinkState, (function (u) {
-        return function () { return u.wrappingTarget; };
-      })(unit), role);
-
-      spiderUnits.push(unit);
-
-      /* Initial foot placement (staggered) */
-      (function (u, idx) {
-        setTimeout(function () {
-          triggerStep(0, null, u.footState, spiderweb, u.spider, samplePoints, null, STEP_COOLDOWN);
-          triggerStep(2, null, u.footState, spiderweb, u.spider, samplePoints, null, STEP_COOLDOWN);
-        }, 60 + idx * 80);
-        setTimeout(function () {
-          triggerStep(1, null, u.footState, spiderweb, u.spider, samplePoints, null, STEP_COOLDOWN);
-          triggerStep(3, null, u.footState, spiderweb, u.spider, samplePoints, null, STEP_COOLDOWN);
-        }, 210 + idx * 80);
-      })(unit, i);
+      addSpiderUnit(rolesToBuild[i], sx, sy);
     }
   }
 
   /* initial build */
   buildWeb(); buildSpiders();
   initOverlay();
+
+  /* ================================================================
+     TUTORIAL SYSTEM
+  ================================================================ */
+  var tutorialStep = -1; /* -1 = not in tutorial */
+  var tutorialHintEl = document.getElementById('tutorial-hint');
+  var _tutorialBugReleased = false;  /* track if a bug has released (broken web) */
+  var _tutorialRepairDone = false;   /* track if healer completed a repair */
+
+  function showHint(text) {
+    if (!tutorialHintEl) return;
+    tutorialHintEl.textContent = text;
+    tutorialHintEl.classList.add('visible');
+  }
+
+  function hideHint() {
+    if (!tutorialHintEl) return;
+    tutorialHintEl.classList.remove('visible');
+  }
+
+  /**
+   * Advance the tutorial state machine.
+   * Called from various game events (collect, bug escape, kill, repair).
+   */
+  function advanceTutorial(event) {
+    if (tutorialStep < 0) return;
+
+    if (tutorialStep === 0) {
+      /* Waiting: show hint, leaves are already spawned */
+      /* → advance when player collects first leaf */
+      if (event === 'collect_drop') {
+        tutorialStep = 1;
+        hideHint();
+        /* Spawn a fly + 1 leaf after 1.5s */
+        setTimeout(function () {
+          launchObject('bug');
+          launchObject('drop');
+          showHint('苍蝇会破坏蜘蛛网！');
+          tutorialStep = 2;
+        }, 1500);
+      }
+    } else if (tutorialStep === 2) {
+      /* Waiting for bug to escape and break web */
+      if (event === 'bug_released') {
+        tutorialStep = 3;
+        hideHint();
+        /* Spawn black spider after 1s */
+        setTimeout(function () {
+          var angle = -Math.PI / 2;
+          addSpiderUnit('default', cx + Math.cos(angle) * 50, cy + Math.sin(angle) * 50);
+          showHint('拖拽黑色蜘蛛到苍蝇上消灭它');
+          tutorialStep = 4;
+        }, 1000);
+      }
+    } else if (tutorialStep === 4) {
+      /* Waiting for player to kill the bug */
+      if (event === 'kill_bug') {
+        tutorialStep = 5;
+        hideHint();
+        /* Spawn white spider + 1 leaf after 1s */
+        setTimeout(function () {
+          var angle = Math.PI / 6;
+          addSpiderUnit('healer', cx + Math.cos(angle) * 50, cy + Math.sin(angle) * 50);
+          launchObject('drop');
+          showHint('拖拽白色蜘蛛到破损处修复蜘蛛网');
+          tutorialStep = 6;
+        }, 1000);
+      }
+    } else if (tutorialStep === 6) {
+      /* Waiting for healer to complete a repair */
+      if (event === 'repair_done') {
+        tutorialStep = 7;
+        hideHint();
+        setTimeout(function () {
+          showHint('很好！准备迎接更多挑战');
+          /* Spawn 1 more fly + 1 leaf */
+          launchObject('bug');
+          setTimeout(function () { launchObject('drop'); }, 300);
+          tutorialStep = 8;
+          /* Hide hint after 3s */
+          setTimeout(function () { hideHint(); }, 3000);
+        }, 800);
+      }
+    }
+    /* step 8: normal play until foodGoal reached */
+  }
+
+  /**
+   * Start tutorial for level 0
+   */
+  function startTutorial() {
+    tutorialStep = 0;
+    _tutorialBugReleased = false;
+    _tutorialRepairDone = false;
+    /* Only green spider at start */
+    buildSpiders(['collector']);
+    /* Spawn 2 leaves after 2s */
+    setTimeout(function () {
+      launchObject('drop');
+      setTimeout(function () { launchObject('drop'); }, 500);
+      showHint('拖拽绿色蜘蛛到树叶上采集食物');
+    }, 1200);
+  }
 
   /* ================================================================
      DRAG INPUT SYSTEM (Battleheart style)
@@ -507,6 +613,8 @@ window.onload = function () {
     clearAllObjects();
     var cfg = getCfg(n);
     spawnIndex = 0;
+    tutorialStep = -1; /* reset tutorial */
+    hideHint();
     refreshFoodBar();
     /* 切换背景主题 */
     if (typeof switchSylvanTheme === 'function') switchSylvanTheme(n % BG_THEMES.length);
@@ -516,6 +624,11 @@ window.onload = function () {
     webWarmupFrames = 90;
     webGridList = null; webInitCells = 1; webScanPending = 0; webLossPct = 0;
     webGridBuildIdx = 0; webGridInitCover = 0;
+
+    /* Tutorial level: event-driven, only green spider at start */
+    if (cfg.tutorial) {
+      startTutorial();
+    }
   }
 
   function endLevel() {
@@ -699,6 +812,7 @@ window.onload = function () {
     refreshFoodBar();
     showFoodPop(amount);
     pendingLevelCheck = true;
+    if (kind === 'drop') advanceTutorial('collect_drop');
   }
   function getCanvasPointOnStage(x, y) {
     var stageRect = screenShellEl.getBoundingClientRect();
@@ -878,6 +992,7 @@ window.onload = function () {
         c._repairing = false;
         if (c._originalEdge) c._originalEdge._repairingActive = false;
         repairingConstraints.splice(i, 1);
+        advanceTutorial('repair_done');
       }
     }
   }
@@ -1007,7 +1122,7 @@ window.onload = function () {
         obj.freeTimer++;
         var thrash = obj.kind === 'bug' ? 14 : 4;
         p.pos.x += (Math.random() - 0.5) * thrash; p.pos.y += (Math.random() - 0.5) * (thrash * 0.6);
-        if (obj.freeTimer > 28) { obj.release(spiderweb, webBreakFlashes, _breakFrame); webScanPending = 12; }
+        if (obj.freeTimer > 28) { obj.release(spiderweb, webBreakFlashes, _breakFrame); webScanPending = 12; advanceTutorial('bug_released'); }
       } else if (obj.state === 'falling2') {
         if (obj.kind === 'drop') {
           obj.angleVel += (Math.random() - 0.5) * obj.angleTurb; obj.angleVel *= obj.angleDrag; obj.angle += obj.angleVel;
@@ -1035,6 +1150,7 @@ window.onload = function () {
             obj.destroy(sim);
             thrownObjects.splice(oi, 1);
             updateBadge(obj.kind, -1);
+            advanceTutorial('kill_bug');
           } else {
             /* ── Collect (leaf): fly toward progress bar ── */
             audioEngine.playCollectSound(obj.kind);
