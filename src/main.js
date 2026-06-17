@@ -1117,10 +1117,11 @@ window.onload = function () {
   var _lastTimestamp = 0;
   var _bgFrame = 0;
   var loop = function (timestamp) {
-    /* ── 时间差自适应物理步长 ── */
+    /* ── 时间差：计算帧缩放比，用于游戏逻辑速度补偿 ── */
     var delta = _lastTimestamp ? Math.min(timestamp - _lastTimestamp, 50) : 16.67;
     _lastTimestamp = timestamp;
-    var physicsSteps = Math.max(1, Math.round(delta / 16.67));
+    /* timeScale: 60fps=1.0, 30fps=2.0, 120fps=0.5 — 让游戏逻辑速度与帧率解耦 */
+    var timeScale = delta / 16.67;
 
     /* ── 弹性拖拽平滑阻尼 (每帧约逼近10%) ── */
     _smoothDrag.x += (_dragOffset.x - _smoothDrag.x) * 0.1;
@@ -1152,7 +1153,8 @@ window.onload = function () {
       var dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > arriveThreshold) {
         moving = true;
-        var nx = (dx / dist) * moveSpeed, ny = (dy / dist) * moveSpeed;
+        var scaledSpeed = moveSpeed * timeScale;
+        var nx = (dx / dist) * scaledSpeed, ny = (dy / dist) * scaledSpeed;
         moveDir = new Vec2(dx / dist, dy / dist);
         for (var p = 0; p < spider.particles.length; p++) {
           spider.particles[p].pos.x += nx; spider.particles[p].pos.y += ny;
@@ -1207,7 +1209,7 @@ window.onload = function () {
     if (pendingLevelCheck) { pendingLevelCheck = false; checkLevelComplete(); }
 
     updateBlink();
-    sim.frame(physicsSteps);
+    sim.frame(16);   // 约束迭代次数固定，保持物理稳定性
     sim.draw();
     drawThrownObjects(sim.ctx, thrownObjects);
     if (spider && spider.drawConstraints) spider.drawConstraints(sim.ctx, spider);
