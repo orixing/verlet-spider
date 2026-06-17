@@ -96,6 +96,21 @@ window.onload = function () {
   canvas.getContext('2d').scale(dpr, dpr);
   var cx = W / 2, cy = H / 2;
 
+  /* 每关固定的网配置，从小到大 */
+  var _R = function (s) { return Math.round(Math.min(W, H) / 2 * s * WEB_SCALE); };
+  var WEB_PRESETS = [
+    /* 第1关（引导）：小而简单 */
+    { segs: 18, depth: 7,  radius: _R(1.0),  cx: cx, cy: cy, pinStep: 4 },
+    /* 第2关：中小 */
+    { segs: 22, depth: 9,  radius: _R(1.15), cx: cx, cy: cy, pinStep: 4 },
+    /* 第3关：中等 */
+    { segs: 26, depth: 11, radius: _R(1.30), cx: cx, cy: cy, pinStep: 4 },
+    /* 第4关：较大 */
+    { segs: 30, depth: 13, radius: _R(1.45), cx: cx, cy: cy, pinStep: 3 },
+    /* 第5关：最大 */
+    { segs: 36, depth: 15, radius: _R(1.60), cx: cx, cy: cy, pinStep: 3 }
+  ];
+
   var sim = new VerletJS(W, H, canvas);
   sim.gravity = new Vec2(0, 0);
   initSylvanBackground(W, H, screenShellEl);
@@ -596,14 +611,7 @@ window.onload = function () {
     document.getElementById('score-txt').textContent = '0';
     document.getElementById('score-bar').style.display = 'block';
     document.getElementById('wave-bar').style.display = 'block';
-    webOverride = {
-      segs: 20 + Math.floor(Math.random() * 18),
-      depth: 8 + Math.floor(Math.random() * 7),
-      radius: Math.round(Math.min(W, H) / 2 * (1.25 + Math.random() * 0.35) * WEB_SCALE),
-      cx: cx + (Math.random() - 0.5) * 40,
-      cy: cy + (Math.random() - 0.5) * 40,
-      pinStep: 3 + Math.floor(Math.random() * 4)
-    };
+    webOverride = WEB_PRESETS[0];
     buildWeb(); buildSpiders();
     /* BGM 由背景系统管理 */
     if (P.bgMusicOn) audioEngine.playLevelBGM(P.bgTheme);
@@ -664,12 +672,8 @@ window.onload = function () {
 
   function resetWebAndStartNextLevel() {
     gameFrames = 0;
-    webOverride = {
-      segs: 20 + Math.floor(Math.random() * 18), depth: 8 + Math.floor(Math.random() * 7),
-      radius: Math.round(Math.min(W, H) / 2 * (1.25 + Math.random() * 0.35) * WEB_SCALE),
-      cx: cx + (Math.random() - 0.5) * 40, cy: cy + (Math.random() - 0.5) * 40,
-      pinStep: 3 + Math.floor(Math.random() * 4)
-    };
+    var nextIdx = currentLevel + 1;
+    webOverride = WEB_PRESETS[nextIdx] || WEB_PRESETS[WEB_PRESETS.length - 1];
     buildWeb(); buildSpiders();
     startLevel(currentLevel + 1);
   }
@@ -1044,9 +1048,16 @@ window.onload = function () {
   }
 
   /* ── Stick system helpers ── */
-  function _radialRatioAt(x, y) { return radialRatioAt(x, y, W, H, P.webRadius * WEB_SCALE); }
-  function _inWebZone(x, y) { return inWebZone(x, y, W, H, P.webRadius * WEB_SCALE); }
-  function _getWebOuterR() { return getWebOuterR(W, H, P.webRadius * WEB_SCALE); }
+  /* 使用实际网半径 webRad（由 WEB_PRESETS/buildWeb 设定），而非面板参数 */
+  function _radialRatioAt(x, y) {
+    var dx = x - webCx, dy = y - webCy;
+    return Math.sqrt(dx * dx + dy * dy) / (webRad || 1);
+  }
+  function _inWebZone(x, y) {
+    var dx = x - webCx, dy = y - webCy;
+    return dx * dx + dy * dy <= webRad * webRad;
+  }
+  function _getWebOuterR() { return webRad; }
 
   /* ── updateThrownObjects (mostly unchanged, but wrapping completion uses per-unit) ── */
   function updateThrownObjects() {
@@ -1061,13 +1072,13 @@ window.onload = function () {
         if (obj.kind === 'bug') {
           var bx = obj.baseVx + Math.sin(obj.animT * obj.buzzFreqX + obj.buzzPhaseX) * obj.buzzAmp * 0.08 + Math.cos(obj.animT * obj.buzzFreqX * 1.7 + obj.buzzPhaseX) * obj.buzzAmp * 0.04 + (Math.random() - 0.5) * 0.5;
           var by = obj.baseVy + Math.sin(obj.animT * obj.buzzFreqY + obj.buzzPhaseY) * obj.buzzAmp * 0.08 + Math.cos(obj.animT * obj.buzzFreqY * 2.1 + obj.buzzPhaseY) * obj.buzzAmp * 0.04 + (Math.random() - 0.5) * 0.5;
-          if (!obj.released && Math.random() < 0.018) { obj.baseVx = (Math.random() - 0.5) * 5; obj.baseVy = (Math.random() - 0.5) * 5; }
+          if (!obj.released && !obj._forceCenterStick && Math.random() < 0.018) { obj.baseVx = (Math.random() - 0.5) * 5; obj.baseVy = (Math.random() - 0.5) * 5; }
           p.pos.x += bx; p.pos.y += by; p.lastPos.x = p.pos.x - bx; p.lastPos.y = p.pos.y - by;
           obj.angle = Math.atan2(by, bx); obj.wingT += 0.55;
           if (!obj._buzzStarted) { obj._buzzStarted = true; audioEngine.startBugBuzz(oi); }
           var offScreen = p.pos.x < -80 || p.pos.x > W + 80 || p.pos.y < -80 || p.pos.y > H + 80;
           var timeout = obj.released && (obj.animT - obj._releaseFrame > 200);
-          if (offScreen || timeout) { audioEngine.stopBugBuzz(oi); obj.destroy(sim); thrownObjects.splice(oi, 1); updateBadge(obj.kind, -1); continue; }
+          if (!obj._forceCenterStick && (offScreen || timeout)) { audioEngine.stopBugBuzz(oi); obj.destroy(sim); thrownObjects.splice(oi, 1); updateBadge(obj.kind, -1); continue; }
         } else {
           obj.angleVel += (Math.random() - 0.5) * obj.angleTurb; obj.angleVel *= obj.angleDrag;
           obj.angleVel = Math.max(-0.025, Math.min(0.025, obj.angleVel)); obj.angle += obj.angleVel;
@@ -1082,10 +1093,17 @@ window.onload = function () {
         /* C方案粘网 */
         var stepLen = Math.sqrt((p.pos.x - prevX) * (p.pos.x - prevX) + (p.pos.y - prevY) * (p.pos.y - prevY));
 
-        /* Force-center-stick: when close to center, pick nearest constraint and stick */
+        /* Force-center-stick: when inside web zone, pick nearest constraint and stick */
         if (obj._forceCenterStick && obj.state === 'falling') {
           var dcx = p.pos.x - cx, dcy = p.pos.y - cy;
-          if (dcx * dcx + dcy * dcy < 60 * 60) {
+          var distToCenter = Math.sqrt(dcx * dcx + dcy * dcy);
+          /* Keep steering toward center */
+          if (distToCenter > 10) {
+            var steerX = (cx - p.pos.x) / distToCenter * 0.15;
+            var steerY = (cy - p.pos.y) / distToCenter * 0.15;
+            obj.baseVx += steerX; obj.baseVy += steerY;
+          }
+          if (distToCenter < 80) {
             var bestHit = null, bestD = Infinity;
             var _cs = spiderweb.constraints;
             for (var ci = 0; ci < _cs.length; ci++) {
