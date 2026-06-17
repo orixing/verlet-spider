@@ -1,9 +1,24 @@
+import flyUrl from '../assets/fly.png';
+import wormUrl from '../assets/worm.png';
+
+var flyImg = new Image();
+flyImg.src = flyUrl;
+
+var wormImg = new Image();
+wormImg.src = wormUrl;
+
 /**
  * HUD 物品栏图标绘制
  */
 
 export function drawInventoryBoulder(ctx, w, h) {
   ctx.clearRect(0, 0, w, h);
+  if (wormImg.complete && wormImg.naturalWidth > 0) {
+    var drawW = 42;
+    var drawH = drawW * (wormImg.naturalHeight / wormImg.naturalWidth);
+    ctx.drawImage(wormImg, (w - drawW) * 0.5, (h - drawH) * 0.5, drawW, drawH);
+    return;
+  }
   ctx.save();
   ctx.translate(w * 0.5, h * 0.5 + 1);
   var segR = 5.2, gap = 7.2, segs = 4;
@@ -26,6 +41,12 @@ export function drawInventoryBoulder(ctx, w, h) {
 
 export function drawInventoryBug(ctx, w, h) {
   ctx.clearRect(0, 0, w, h);
+  if (flyImg.complete && flyImg.naturalWidth > 0) {
+    var drawH = 33.6;
+    var drawW = drawH * (flyImg.naturalWidth / flyImg.naturalHeight);
+    ctx.drawImage(flyImg, (w - drawW) * 0.5, (h - drawH) * 0.5, drawW, drawH);
+    return;
+  }
   ctx.save();
   ctx.translate(w * 0.5, h * 0.56);
   var r = 5.2;

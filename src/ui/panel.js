@@ -56,7 +56,7 @@ export function initPanel(P, DEFAULTS, callbacks) {
   document.getElementById('btn-save').onclick = function () {
     localStorage.setItem('spiderPanelParams', JSON.stringify(P));
     var h = document.getElementById('save-hint');
-    h.textContent = '\u2713 \u5df2\u4fdd\u5b58';
+    h.textContent = '\u2713 Saved';
     setTimeout(function () { h.textContent = ''; }, 2000);
   };
 

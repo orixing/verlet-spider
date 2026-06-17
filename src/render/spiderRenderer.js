@@ -1,4 +1,8 @@
 import { DistanceConstraint } from '../engine/constraints.js';
+import popoHeadUrl from '../assets/popo.png';
+
+var popoHeadImg = new Image();
+popoHeadImg.src = popoHeadUrl;
 
 /**
  * 设置蜘蛛的自定义绘制函数
@@ -6,18 +10,6 @@ import { DistanceConstraint } from '../engine/constraints.js';
 export function setupSpiderDraw(spider, legConstraintCount, footState, blinkState, getWrappingTarget) {
   spider.drawConstraints = function (ctx, comp) {
     var wrappingTarget = getWrappingTarget();
-
-    for (var i = 3; i < legConstraintCount; ++i) {
-      var con = comp.constraints[i];
-      if (!(con instanceof DistanceConstraint)) continue;
-      ctx.beginPath(); ctx.moveTo(con.a.pos.x, con.a.pos.y); ctx.lineTo(con.b.pos.x, con.b.pos.y);
-      var s = 9, ip = (i - 3) % s;
-      if (ip <= 1) { ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 6; }
-      else if (ip <= 3) { ctx.strokeStyle = "#222"; ctx.lineWidth = 4; }
-      else if (ip <= 5) { ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 3; }
-      else { ctx.strokeStyle = "#333"; ctx.lineWidth = 2; }
-      ctx.stroke();
-    }
 
     /* 打包方向向量 */
     var wrapOX = 0, wrapOY = 0, wrapOL = 1, wrapT2 = 0, wrapAt = 0, wrapSpeed = 0;
@@ -39,6 +31,7 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
       abdomenDX = -wrapOX * lean * 0.4; abdomenDY = -wrapOY * lean * 0.4;
     }
 
+    var footDraw = [];
     for (var fi = 0; fi < footState.length; fi++) {
       var fs = footState[fi];
       var drawCX = fs.current.x, drawCY = fs.current.y;
@@ -60,38 +53,79 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
           drawCY += -wrapOY * Math.abs(Math.sin(wrapSpeed * 0.5 + phase2)) * 4 + perpY * backSwing * 0.6;
         }
         ctx.beginPath(); ctx.moveTo(prevCX, prevCY); ctx.lineTo(drawCX, drawCY);
-        ctx.strokeStyle = 'rgba(80,80,80,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.strokeStyle = 'rgba(80,80,80,0.18)'; ctx.lineWidth = 1.2; ctx.stroke();
       }
-
-      ctx.beginPath(); ctx.moveTo(fs.particle.pos.x, fs.particle.pos.y);
-      ctx.lineTo(drawCX, drawCY);
-      ctx.strokeStyle = wrappingTarget ? "#2a2a2a" : "#333";
-      ctx.lineWidth = wrappingTarget ? 2.5 : 2;
-      ctx.stroke();
-      ctx.beginPath(); ctx.arc(drawCX, drawCY, wrappingTarget ? 2.5 : 1.8, 0, 2 * Math.PI);
-      ctx.fillStyle = "#111"; ctx.fill();
+      footDraw.push({ x: drawCX, y: drawCY });
     }
 
     var tx2 = spider.thorax.pos.x + thoraxDX, ty2 = spider.thorax.pos.y + thoraxDY;
-    ctx.beginPath(); ctx.arc(tx2, ty2, 4, 0, 2 * Math.PI); ctx.fillStyle = "#1a1a1a"; ctx.fill();
     var ax2 = spider.abdomen.pos.x + abdomenDX, ay2 = spider.abdomen.pos.y + abdomenDY;
-    ctx.beginPath(); ctx.arc(ax2, ay2, 13.5, 0, 2 * Math.PI); ctx.fillStyle = "#1a1a1a"; ctx.fill();
-    ctx.beginPath(); ctx.arc(ax2, ay2 - 3, 4.5, 0, 2 * Math.PI); ctx.fillStyle = "rgba(255,255,255,0.08)"; ctx.fill();
+
+    // Soft curved legs with more joints.
+    var chains = spider.legChains || [];
+    for (var ci = 0; ci < chains.length; ci++) {
+      var chain = chains[ci];
+      var pts = [];
+      for (var pi = 0; pi < chain.length; pi++) {
+        var p = chain[pi].pos;
+        pts.push({ x: p.x, y: p.y });
+      }
+      if (footDraw[ci]) {
+        pts[pts.length - 1] = footDraw[ci];
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (var qi = 1; qi < pts.length - 2; qi++) {
+        var xc = (pts[qi].x + pts[qi + 1].x) * 0.5;
+        var yc = (pts[qi].y + pts[qi + 1].y) * 0.5;
+        ctx.quadraticCurveTo(pts[qi].x, pts[qi].y, xc, yc);
+      }
+      ctx.quadraticCurveTo(
+        pts[pts.length - 2].x,
+        pts[pts.length - 2].y,
+        pts[pts.length - 1].x,
+        pts[pts.length - 1].y
+      );
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#0c0c0c';
+      ctx.lineWidth = 4.6;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (var qi2 = 1; qi2 < pts.length - 2; qi2++) {
+        var xc2 = (pts[qi2].x + pts[qi2 + 1].x) * 0.5;
+        var yc2 = (pts[qi2].y + pts[qi2 + 1].y) * 0.5;
+        ctx.quadraticCurveTo(pts[qi2].x, pts[qi2].y, xc2, yc2);
+      }
+      ctx.quadraticCurveTo(
+        pts[pts.length - 2].x,
+        pts[pts.length - 2].y,
+        pts[pts.length - 1].x,
+        pts[pts.length - 1].y
+      );
+      ctx.strokeStyle = '#1b1b1b';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.restore();
+    }
 
     var ax = ax2, ay = ay2;
     var tx = tx2, ty = ty2;
     var fdx = tx - ax, fdy = ty - ay, fl = Math.sqrt(fdx * fdx + fdy * fdy) || 1;
     var fnx = fdx / fl, fny = fdy / fl, prx = -fny, pry = fnx;
-    var eyeR = 5.4, ecx = ax + fnx * 10, ecy = ay + fny * 10, bs = blinkState.scale;
 
-    function drawEye(ex, ey) {
-      ctx.save(); ctx.translate(ex, ey); ctx.scale(1, bs);
-      ctx.beginPath(); ctx.arc(0, 0, eyeR, 0, 2 * Math.PI); ctx.fillStyle = "#f0f0c0"; ctx.fill();
-      ctx.beginPath(); ctx.arc(0, 0, eyeR * 0.35, 0, 2 * Math.PI); ctx.fillStyle = "#222"; ctx.fill();
-      ctx.restore();
+    // Replace old spider body with provided image head while keeping size similar.
+    if (popoHeadImg.complete && popoHeadImg.naturalWidth > 0) {
+      var imgW = 32;
+      var imgH = imgW * (popoHeadImg.naturalHeight / popoHeadImg.naturalWidth);
+      var imgCX = ax + fnx * 4;
+      var imgCY = ay + fny * 4;
+      ctx.drawImage(popoHeadImg, imgCX - imgW * 0.5, imgCY - imgH * 0.5, imgW, imgH);
     }
-    drawEye(ecx + prx * 4, ecy + pry * 4);
-    drawEye(ecx - prx * 4, ecy - pry * 4);
   };
 
   spider.drawParticles = function () { };

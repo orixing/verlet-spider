@@ -1,3 +1,12 @@
+import flyUrl from '../assets/fly.png';
+import wormUrl from '../assets/worm.png';
+
+var flyImg = new Image();
+flyImg.src = flyUrl;
+
+var wormImg = new Image();
+wormImg.src = wormUrl;
+
 /**
  * 投掷物体绘制
  */
@@ -28,25 +37,28 @@ export function drawThrownObjects(ctx, thrownObjects) {
       else if (obj.state === 'sticking') drawAngle = obj.initAngle + (obj.stuckAngle - obj.initAngle) * obj.stickT;
       else drawAngle = obj.stuckAngle || 0;
       if (obj._wrapAngle) drawAngle = (drawAngle || 0) + obj._wrapAngle;
-      if (drawAngle) ctx.rotate(drawAngle);
-      var segs = 4, segR = def.r * 0.92, gap = segR * 1.45;
-      var waveScale = (obj.state === 'stuck' || obj.state === 'freeing') ? 1.0 : 0.12;
-      for (var si = 0; si < segs; si++) {
-        var sy2 = si * gap - (segs - 1) * gap * 0.5 + gap * 0.5;
-        var wave = Math.sin(obj.segT + si * 1.0) * 2.5 * waveScale;
-        var rv = Math.floor(160 + si * 22);
-        ctx.beginPath(); ctx.arc(wave, sy2, segR, 0, 2 * Math.PI);
-        ctx.fillStyle = 'rgb(' + rv + ',20,20)'; ctx.fill();
-        ctx.strokeStyle = 'rgba(80,0,0,0.45)'; ctx.lineWidth = 0.7; ctx.stroke();
+      ctx.rotate((drawAngle || 0) + Math.PI / 2);
+      if (wormImg.complete && wormImg.naturalWidth > 0) {
+        var wormW = def.r * 9.0;
+        var wormH = wormW * (wormImg.naturalHeight / wormImg.naturalWidth);
+        ctx.drawImage(wormImg, -wormW * 0.5, -wormH * 0.5, wormW, wormH);
+      } else {
+        var segs = 4, segR = def.r * 0.92, gap = segR * 1.45;
+        var waveScale = (obj.state === 'stuck' || obj.state === 'freeing') ? 1.0 : 0.12;
+        for (var si = 0; si < segs; si++) {
+          var sy2 = si * gap - (segs - 1) * gap * 0.5 + gap * 0.5;
+          var wave = Math.sin(obj.segT + si * 1.0) * 2.5 * waveScale;
+          var rv = Math.floor(160 + si * 22);
+          ctx.beginPath(); ctx.arc(wave, sy2, segR, 0, 2 * Math.PI);
+          ctx.fillStyle = 'rgb(' + rv + ',20,20)'; ctx.fill();
+          ctx.strokeStyle = 'rgba(80,0,0,0.45)'; ctx.lineWidth = 0.7; ctx.stroke();
+        }
+        var headY = -(segs - 1) * gap * 0.5 - gap * 0.15;
+        var headWave = Math.sin(obj.segT + segs * 1.0) * 2.5 * waveScale;
+        ctx.beginPath(); ctx.arc(headWave, headY, segR * 1.2, 0, 2 * Math.PI);
+        ctx.fillStyle = '#b81010'; ctx.fill();
+        ctx.strokeStyle = 'rgba(80,0,0,0.55)'; ctx.lineWidth = 0.8; ctx.stroke();
       }
-      var headY = -(segs - 1) * gap * 0.5 - gap * 0.15;
-      var headWave = Math.sin(obj.segT + segs * 1.0) * 2.5 * waveScale;
-      ctx.beginPath(); ctx.arc(headWave, headY, segR * 1.2, 0, 2 * Math.PI);
-      ctx.fillStyle = '#b81010'; ctx.fill();
-      ctx.strokeStyle = 'rgba(80,0,0,0.55)'; ctx.lineWidth = 0.8; ctx.stroke();
-      ctx.strokeStyle = 'rgba(120,0,0,0.75)'; ctx.lineWidth = 0.9;
-      ctx.beginPath(); ctx.moveTo(headWave - 2, headY - segR * 0.9); ctx.lineTo(headWave - 5, headY - segR * 1.8); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(headWave + 2, headY - segR * 0.9); ctx.lineTo(headWave + 5, headY - segR * 1.8); ctx.stroke();
       ctx.restore();
     }
 
@@ -54,33 +66,27 @@ export function drawThrownObjects(ctx, thrownObjects) {
     else if (obj.kind === 'bug') {
       ctx.save(); ctx.translate(px, py);
       ctx.rotate(obj.angle + Math.PI / 2 + (obj._wrapAngle || 0));
-      var r = def.r;
-      var wFlapBase = (obj.state === 'stuck' || obj.state === 'freeing' || obj.state === 'wrapping') ? 0.65 * 0.30 : 0.65;
-      var wFlap = Math.sin(obj.wingT) * wFlapBase;
-      ctx.save(); ctx.rotate(-wFlap);
-      ctx.beginPath(); ctx.ellipse(-r * 1.6, -r * 0.2, r * 1.55, r * 0.52, Math.PI * 0.08, 0, 2 * Math.PI);
-      ctx.fillStyle = 'rgba(160,210,255,0.72)'; ctx.fill();
-      ctx.strokeStyle = 'rgba(60,100,180,0.55)'; ctx.lineWidth = 0.9; ctx.stroke();
-      ctx.restore();
-      ctx.save(); ctx.rotate(wFlap);
-      ctx.beginPath(); ctx.ellipse(r * 1.6, -r * 0.2, r * 1.55, r * 0.52, -Math.PI * 0.08, 0, 2 * Math.PI);
-      ctx.fillStyle = 'rgba(160,210,255,0.72)'; ctx.fill();
-      ctx.strokeStyle = 'rgba(60,100,180,0.55)'; ctx.lineWidth = 0.9; ctx.stroke();
-      ctx.restore();
-      ctx.beginPath(); ctx.ellipse(0, 0, r * 0.55, r, 0, 0, 2 * Math.PI);
-      ctx.fillStyle = '#3a3a2a'; ctx.fill();
-      ctx.strokeStyle = '#1a1a10'; ctx.lineWidth = 1; ctx.stroke();
-      for (var si = 0; si < 3; si++) {
-        var sy3 = si * r * 0.55 - r * 0.3;
-        ctx.beginPath(); ctx.moveTo(-r * 0.5, sy3); ctx.lineTo(r * 0.5, sy3);
-        ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1.5; ctx.stroke();
+      if (flyImg.complete && flyImg.naturalWidth > 0) {
+        var flyH = def.r * 4.32;
+        var flyW = flyH * (flyImg.naturalWidth / flyImg.naturalHeight);
+        ctx.drawImage(flyImg, -flyW * 0.5, -flyH * 0.5, flyW, flyH);
+      } else {
+        var r = def.r;
+        var wFlapBase = (obj.state === 'stuck' || obj.state === 'freeing' || obj.state === 'wrapping') ? 0.65 * 0.30 : 0.65;
+        var wFlap = Math.sin(obj.wingT) * wFlapBase;
+        ctx.save(); ctx.rotate(-wFlap);
+        ctx.beginPath(); ctx.ellipse(-r * 1.6, -r * 0.2, r * 1.55, r * 0.52, Math.PI * 0.08, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(160,210,255,0.72)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(60,100,180,0.55)'; ctx.lineWidth = 0.9; ctx.stroke();
+        ctx.restore();
+        ctx.save(); ctx.rotate(wFlap);
+        ctx.beginPath(); ctx.ellipse(r * 1.6, -r * 0.2, r * 1.55, r * 0.52, -Math.PI * 0.08, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(160,210,255,0.72)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(60,100,180,0.55)'; ctx.lineWidth = 0.9; ctx.stroke();
+        ctx.restore();
+        ctx.beginPath(); ctx.ellipse(0, 0, r * 0.55, r, 0, 0, 2 * Math.PI);
+        ctx.fillStyle = '#3a3a2a'; ctx.fill();
       }
-      ctx.beginPath(); ctx.arc(0, -r - r * 0.45, r * 0.55, 0, 2 * Math.PI);
-      ctx.fillStyle = '#2a2a1a'; ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 0.8; ctx.stroke();
-      ctx.beginPath(); ctx.arc(-r * 0.28, -r - r * 0.55, r * 0.3, 0, 2 * Math.PI);
-      ctx.fillStyle = '#8a0000'; ctx.fill();
-      ctx.beginPath(); ctx.arc(r * 0.28, -r - r * 0.55, r * 0.3, 0, 2 * Math.PI);
-      ctx.fillStyle = '#8a0000'; ctx.fill();
       ctx.restore();
     }
 

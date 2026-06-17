@@ -43,6 +43,7 @@ import {
   switchSylvanTheme,
   bgConfig,
   applyBgBlur,
+  applyBgPresentation,
   setBgParticleCount,
   THEMES as BG_THEMES
 } from './render/sylvanBackground.js';
@@ -73,17 +74,21 @@ window.onload = function () {
     caterpillarWeight: 5, flyWeight: 3, leafWeight: 1,
     caterpillarReleaseSec: 3, flyReleaseSec: 2, leafReleaseSec: 0,
     bgTheme: 0, bgBlur: 100, bgWind: 1.0, bgRay: 55,
-    bgPart: 40, bgVol: 60, bgMusicOn: 1, bgLayoutVersion: 1
+    bgDarken: 0, bgPurity: 100, bgYOffset: 10,
+    bgPart: 40, bgVol: 60, bgMusicOn: 1, bgLayoutVersion: 3
   };
   var P = Object.assign({}, DEFAULTS);
   try {
     var saved = JSON.parse(localStorage.getItem('spiderPanelParams') || '{}');
     Object.assign(P, saved);
-    if (!saved.bgLayoutVersion) {
+    if (!saved.bgLayoutVersion || saved.bgLayoutVersion < 3) {
       P.bgTheme = DEFAULTS.bgTheme;
       P.bgBlur = DEFAULTS.bgBlur;
       P.bgWind = DEFAULTS.bgWind;
       P.bgRay = DEFAULTS.bgRay;
+      P.bgDarken = DEFAULTS.bgDarken;
+      P.bgPurity = DEFAULTS.bgPurity;
+      P.bgYOffset = DEFAULTS.bgYOffset;
       P.bgPart = DEFAULTS.bgPart;
       P.bgVol = DEFAULTS.bgVol;
       P.bgMusicOn = DEFAULTS.bgMusicOn;
@@ -286,9 +291,9 @@ window.onload = function () {
   /* ── show IDLE start screen ── */
   showOverlay(
     '<div class="overlay-title">SPIDER WEB</div>'
-    + '<div class="overlay-subtitle" style="margin-bottom:6px">收集网上的猎物</div>'
-    + '<div class="overlay-subtitle" style="margin-bottom:22px;opacity:0.6">在 3 分钟内坚持到底，网破就输</div>'
-    + '<button class="overlay-btn" id="btn-start-game">开始游戏</button>'
+    + '<div class="overlay-subtitle" style="margin-bottom:6px">Collect prey caught in the web</div>'
+    + '<div class="overlay-subtitle" style="margin-bottom:22px;opacity:0.6">Survive for 3 minutes. If the web breaks, you lose.</div>'
+    + '<button class="overlay-btn" id="btn-start-game">Start Game</button>'
   );
   document.getElementById('btn-start-game').onclick = startGameFromBeginning;
 
@@ -307,8 +312,10 @@ window.onload = function () {
     currentLevel = 0;
     gameFrames = 0;
     levelScored = false;
-    document.getElementById('score-txt').textContent = '0';
-    document.getElementById('score-bar').style.display = 'block';
+    var scoreTxtEl = document.getElementById('score-txt');
+    var scoreBarEl = document.getElementById('score-bar');
+    if (scoreTxtEl) scoreTxtEl.textContent = '0';
+    if (scoreBarEl) scoreBarEl.style.display = 'none';
     document.getElementById('wave-bar').style.display = 'block';
     webOverride = {
       segs: 20 + Math.floor(Math.random() * 18),
@@ -369,7 +376,8 @@ window.onload = function () {
     var cfg = getCfg(currentLevel);
     var ws = calcWaveScore(levelCollected, cfg.targets);
     totalScore += ws;
-    document.getElementById('score-txt').textContent = totalScore;
+    var scoreTxtEl = document.getElementById('score-txt');
+    if (scoreTxtEl) scoreTxtEl.textContent = totalScore;
     var isLast = (currentLevel >= LEVEL_CONFIGS.length - 1);
     if (isLast) showSuccess();
     else showLevelResult(ws);
@@ -383,11 +391,10 @@ window.onload = function () {
     document.getElementById('wave-bar').style.display = 'none';
     var nextNum = currentLevel + 2;
     showOverlay(
-      '<div class="overlay-title">第 ' + (currentLevel + 1) + ' 关完成！</div>'
-      + '<div class="overlay-subtitle">得分 +' + (levelScore || 0)
-      + '  &nbsp;·&nbsp;  总分 ' + totalScore + '</div>'
-      + '<button class="overlay-btn" id="btn-nextwv" style="margin-top:16px">进入第 ' + nextNum + ' 关</button>'
-      + '<br><button class="overlay-btn" style="background:#555;margin-top:8px" id="btn-restart-wr">从头开始</button>'
+      '<div class="overlay-title">Wave Complete</div>'
+      + '<div class="overlay-subtitle">The web held together.</div>'
+      + '<button class="overlay-btn" id="btn-nextwv" style="margin-top:16px">Next Wave</button>'
+      + '<br><button class="overlay-btn" style="background:#555;margin-top:8px" id="btn-restart-wr">Restart</button>'
     );
     var btn = document.getElementById('btn-nextwv');
     if (btn) { btn.onclick = resetWebAndStartNextLevel; }
@@ -415,11 +422,10 @@ window.onload = function () {
     clearAllObjects();
     document.getElementById('wave-bar').style.display = 'none';
     showOverlay(
-      '<div class="overlay-title">通关！</div>'
-      + '<div class="overlay-subtitle">难度 ' + difficultyLevel + '  ·  总得分 ' + totalScore + '</div>'
-      + '<div class="overlay-total-score">' + totalScore + ' 分</div>'
-      + '<button class="overlay-btn" id="btn-nextlv" style="margin-bottom:8px">更高难度挑战</button>'
-      + '<br><button class="overlay-btn" style="background:#555;margin-top:4px" id="btn-restart-s">从头开始</button>'
+      '<div class="overlay-title">All Waves Clear</div>'
+      + '<div class="overlay-subtitle">The web survived the full run.</div>'
+      + '<button class="overlay-btn" id="btn-nextlv" style="margin-bottom:8px">Higher Challenge</button>'
+      + '<br><button class="overlay-btn" style="background:#555;margin-top:4px" id="btn-restart-s">Restart</button>'
     );
     document.getElementById('btn-nextlv').onclick = function () { difficultyLevel++; startGame(); };
     document.getElementById('btn-restart-s').onclick = startGameFromBeginning;
@@ -433,11 +439,10 @@ window.onload = function () {
     document.getElementById('wave-bar').style.display = 'none';
     var timeUsed = framesToTime(gameFrames);
     showOverlay(
-      '<div class="overlay-title">网破了！</div>'
-      + '<div class="overlay-subtitle">难度 ' + difficultyLevel + '  第 ' + (currentLevel + 1) + ' 关  ·  坚持 ' + timeUsed + '</div>'
-      + '<div class="overlay-total-score">' + totalScore + ' 分</div>'
-      + '<button class="overlay-btn" id="btn-retry" style="margin-bottom:8px">再试一次</button>'
-      + '<br><button class="overlay-btn" style="background:#555;margin-top:4px" id="btn-restart-f">从头开始</button>'
+      '<div class="overlay-title">Web Broken</div>'
+      + '<div class="overlay-subtitle">Survived ' + timeUsed + '</div>'
+      + '<button class="overlay-btn" id="btn-retry" style="margin-bottom:8px">Try Again</button>'
+      + '<br><button class="overlay-btn" style="background:#555;margin-top:4px" id="btn-restart-f">Restart</button>'
     );
     document.getElementById('btn-retry').onclick = startGame;
     document.getElementById('btn-restart-f').onclick = startGameFromBeginning;
@@ -488,7 +493,7 @@ window.onload = function () {
       webWarmupFrames--;
       if (webWarmupFrames === 0) _buildWebGrid();
       var dbgEl = document.getElementById('dbg-web');
-      if (dbgEl) dbgEl.textContent = '网损: 0%';
+      if (dbgEl) dbgEl.textContent = 'WEB DAMAGE 0%';
       return;
     }
     if (webGridBuildIdx < (webGridList ? webGridList.length : 0)) continueWebGridBuild();
@@ -497,7 +502,7 @@ window.onload = function () {
       if (webScanPending === 0) _scanWebCells();
     }
     var dbgEl = document.getElementById('dbg-web');
-    if (dbgEl) dbgEl.textContent = '网损: ' + webLossPct + '%';
+    if (dbgEl) dbgEl.textContent = 'WEB DAMAGE ' + webLossPct + '%';
     if (webLossPct >= 50) showGameOver();
   }
 
@@ -509,10 +514,9 @@ window.onload = function () {
     var remaining = Math.max(0, GAME_DURATION - gameFrames);
     var rs = Math.ceil(remaining / 60);
     var rm = Math.floor(rs / 60); var rsec = rs % 60;
-    var cntStr = (rm > 0 ? rm + 'm ' : '') + rsec + 's';
+    var cntStr = rm + ':' + (rsec < 10 ? '0' : '') + rsec;
     if (gameState === 'LEVEL_ACTIVE') {
-      document.getElementById('wave-bar').textContent =
-        '第' + (currentLevel + 1) + '关  难度' + difficultyLevel + '  ' + cntStr;
+      document.getElementById('wave-bar').textContent = cntStr;
       if (gameFrames >= GAME_DURATION) endLevel();
       return;
     }
@@ -920,6 +924,12 @@ window.onload = function () {
     var lblWind = document.getElementById('lbl-bgWind');
     var slRay = document.getElementById('sl-bgRay');
     var lblRay = document.getElementById('lbl-bgRay');
+    var slDarken = document.getElementById('sl-bgDarken');
+    var lblDarken = document.getElementById('lbl-bgDarken');
+    var slPurity = document.getElementById('sl-bgPurity');
+    var lblPurity = document.getElementById('lbl-bgPurity');
+    var slYOffset = document.getElementById('sl-bgYOffset');
+    var lblYOffset = document.getElementById('lbl-bgYOffset');
     var slPart = document.getElementById('sl-bgPart');
     var lblPart = document.getElementById('lbl-bgPart');
     var slVol = document.getElementById('sl-bgVol');
@@ -932,7 +942,7 @@ window.onload = function () {
     }
 
     function applyBgmButton() {
-      bgmBtn.textContent = P.bgMusicOn ? '🔊 音乐开关' : '🔇 音乐开关';
+      bgmBtn.textContent = P.bgMusicOn ? '🔊 Music Toggle' : '🔇 Music Toggle';
       bgmBtn.classList.toggle('bgm-on', !!P.bgMusicOn);
     }
 
@@ -940,7 +950,11 @@ window.onload = function () {
       bgConfig.blurScale = P.bgBlur / 100;
       bgConfig.windSpeed = P.bgWind;
       bgConfig.rayOpacity = P.bgRay / 100;
+      bgConfig.darken = P.bgDarken / 100;
+      bgConfig.purity = P.bgPurity / 100;
+      bgConfig.yOffset = P.bgYOffset / 100;
       applyBgBlur();
+      applyBgPresentation();
       setBgParticleCount(P.bgPart);
       if (audioEngine.setVolume) audioEngine.setVolume(P.bgVol / 100);
 
@@ -950,6 +964,12 @@ window.onload = function () {
       lblWind.textContent = Number(P.bgWind).toFixed(1);
       slRay.value = String(P.bgRay);
       lblRay.textContent = P.bgRay + '%';
+      slDarken.value = String(P.bgDarken);
+      lblDarken.textContent = P.bgDarken + '%';
+      slPurity.value = String(P.bgPurity);
+      lblPurity.textContent = P.bgPurity + '%';
+      slYOffset.value = String(P.bgYOffset);
+      lblYOffset.textContent = P.bgYOffset + '%';
       slPart.value = String(P.bgPart);
       lblPart.textContent = String(P.bgPart);
       slVol.value = String(P.bgVol);
@@ -996,6 +1016,26 @@ window.onload = function () {
       P.bgRay = parseInt(this.value, 10);
       bgConfig.rayOpacity = P.bgRay / 100;
       lblRay.textContent = P.bgRay + '%';
+    });
+
+    slDarken.addEventListener('input', function () {
+      P.bgDarken = parseInt(this.value, 10);
+      bgConfig.darken = P.bgDarken / 100;
+      lblDarken.textContent = P.bgDarken + '%';
+      applyBgPresentation();
+    });
+
+    slPurity.addEventListener('input', function () {
+      P.bgPurity = parseInt(this.value, 10);
+      bgConfig.purity = P.bgPurity / 100;
+      lblPurity.textContent = P.bgPurity + '%';
+      applyBgPresentation();
+    });
+
+    slYOffset.addEventListener('input', function () {
+      P.bgYOffset = parseInt(this.value, 10);
+      bgConfig.yOffset = P.bgYOffset / 100;
+      lblYOffset.textContent = P.bgYOffset + '%';
     });
 
     // 孢子粒子

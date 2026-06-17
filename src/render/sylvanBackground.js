@@ -96,7 +96,10 @@ export var bgConfig = {
   blurScale: 1.0,    // 模糊系数倍率，1.0 = 原版默认
   windSpeed: 1.0,    // 风速倍率
   rayOpacity: 0.55,  // 原版默认光束强度
-  particleCount: 40  // 原版默认孢子粒子数量
+  particleCount: 40, // 原版默认孢子粒子数量
+  darken: 0,         // 额外变暗遮罩 0~1
+  purity: 1.0,       // 纯度/饱和度倍率
+  yOffset: 0.10      // 背景整体上移比例（相对画布高度）
 };
 
 /* 基准模糊值（blurScale=1.0时的像素数） */
@@ -109,6 +112,14 @@ export function applyBgBlur() {
   canvases.deep.style.filter = 'blur(' + (BASE_BLURS.deep * s) + 'px)';
   canvases.mid.style.filter  = 'blur(' + (BASE_BLURS.mid  * s) + 'px)';
   canvases.fg.style.filter   = 'blur(' + (BASE_BLURS.fg   * s) + 'px)';
+}
+
+export function applyBgPresentation() {
+  var wrap = document.getElementById('sylvan-bg-wrap');
+  var darkenEl = document.getElementById('sylvan-bg-darken');
+  if (!wrap) return;
+  wrap.style.filter = 'saturate(' + bgConfig.purity + ')';
+  if (darkenEl) darkenEl.style.opacity = String(bgConfig.darken);
 }
 
 export function setBgParticleCount(n) {
@@ -414,7 +425,9 @@ LightRay.prototype.update = function () {
 
 LightRay.prototype.draw = function (ctx) {
   if (this.alpha <= 0.001) return;
-  ctx.save(); ctx.globalAlpha = this.alpha * bgConfig.rayOpacity;
+  ctx.save();
+  ctx.globalAlpha = this.alpha * bgConfig.rayOpacity;
+  ctx.globalCompositeOperation = 'multiply';
   var cos = Math.cos(this.angle), sin = Math.sin(this.angle);
   var p1x = this.originX - sin * (this.width / 2), p1y = this.originY + cos * (this.width / 2);
   var p2x = this.originX + sin * (this.width / 2), p2y = this.originY - cos * (this.width / 2);
@@ -440,6 +453,10 @@ export function initSylvanBackground(W, H, screenShellEl) {
   var wrap = document.createElement('div');
   wrap.id = 'sylvan-bg-wrap';
   wrap.style.cssText = 'position:absolute;inset:0;overflow:hidden;z-index:0;border-radius:4px;pointer-events:none;background:' + activeTheme.bgGradient[0] + ';';
+
+  var darkenEl = document.createElement('div');
+  darkenEl.id = 'sylvan-bg-darken';
+  darkenEl.style.cssText = 'position:absolute;inset:0;z-index:6;pointer-events:none;opacity:0;background:rgba(0,0,0,1);';
 
   var keys = ['bg', 'deep', 'mid', 'fg'];
   // 原版默认 blurScale=2.0，实际模糊值为基准值×2
@@ -468,11 +485,14 @@ export function initSylvanBackground(W, H, screenShellEl) {
     ctxs[key] = c.getContext('2d');
   });
 
+  wrap.appendChild(darkenEl);
+
   // 插入到 screen-shell 的最底层（蛛网 canvas 之前）
   screenShellEl.insertBefore(wrap, screenShellEl.firstChild);
 
   _resizeCanvases();
   _createEntities();
+  applyBgPresentation();
 }
 
 function _resizeCanvases() {
@@ -594,6 +614,8 @@ export function switchSylvanTheme(levelIndex) {
 ══════════════════════════════════════════ */
 export function updateSylvanBackground(windSpeed, isMouseDown, smoothDrag, mx, my) {
   time += 0.5;
+  var baseScale = 1.2;
+  var baseShiftY = -_H * bgConfig.yOffset;
 
   // 极弱自然呼吸风 0.02~0.05 m/s，偶发细微阵风
   var baseWind = 0.035 + Math.sin(time * 0.003) * 0.015;
@@ -616,10 +638,10 @@ export function updateSylvanBackground(windSpeed, isMouseDown, smoothDrag, mx, m
   var midX = pxX * -26 + dx * 0.22,  midY = pxY * -26 + dy * 0.22;
   var fgX = pxX * -48 + dx * 0.35,  fgY = pxY * -48 + dy * 0.35;
 
-  canvases.bg.style.transform   = 'translate(' + bgX   + 'px,' + bgY   + 'px) scale(1.02)';
-  canvases.deep.style.transform = 'translate(' + deepX + 'px,' + deepY + 'px) scale(1.04)';
-  canvases.mid.style.transform  = 'translate(' + midX  + 'px,' + midY  + 'px) scale(1.06)';
-  canvases.fg.style.transform   = 'translate(' + fgX   + 'px,' + fgY   + 'px) scale(1.08)';
+  canvases.bg.style.transform   = 'translate(' + bgX   + 'px,' + (bgY + baseShiftY)   + 'px) scale(' + (1.02 * baseScale) + ')';
+  canvases.deep.style.transform = 'translate(' + deepX + 'px,' + (deepY + baseShiftY) + 'px) scale(' + (1.04 * baseScale) + ')';
+  canvases.mid.style.transform  = 'translate(' + midX  + 'px,' + (midY + baseShiftY)  + 'px) scale(' + (1.06 * baseScale) + ')';
+  canvases.fg.style.transform   = 'translate(' + fgX   + 'px,' + (fgY + baseShiftY)   + 'px) scale(' + (1.08 * baseScale) + ')';
 
   // 更新粒子和光束
   for (var i = 0; i < bokehParticles.length; i++) bokehParticles[i].update(globalWindForce, mx, my);
@@ -634,10 +656,10 @@ export function renderSylvanBackground() {
   ctxs.deep.clearRect(0, 0, _W, _H);
   for (var i = 0; i < treesDeep.length; i++) treesDeep[i].draw(ctxs.deep);
 
-  // 中景：丁达尔光束 + 中景梢枝
+  // 中景：先树枝、后光束，乘法混合才能作用在已有像素上
   ctxs.mid.clearRect(0, 0, _W, _H);
-  for (var i = 0; i < lightRays.length; i++) lightRays[i].draw(ctxs.mid);
   for (var i = 0; i < treesMid.length; i++) treesMid[i].draw(ctxs.mid);
+  for (var i = 0; i < lightRays.length; i++) lightRays[i].draw(ctxs.mid);
 
   // 近景：孢子光斑
   ctxs.fg.clearRect(0, 0, _W, _H);
