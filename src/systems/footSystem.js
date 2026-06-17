@@ -48,12 +48,13 @@ export function updateSamplePoints(pts) {
  * 寻找最佳落脚目标
  */
 export function findStepTarget(webComp, legIndex, spiderComp, moveDir, samplePoints, occupiedPositions) {
-  var stepR = 70, minR = 10, idealDist = 30;
+  var stepR = 53, minR = 10, idealDist = 23;
   var MIN_LEG_SEP = 14;
   var thorax = spiderComp.particles[0].pos;
   var theta = spiderComp.particles[0].pos.angle2(
     spiderComp.particles[0].pos.add(new Vec2(1, 0)), spiderComp.particles[1].pos);
-  var legAngles = [Math.PI * 0.25, Math.PI * 0.75, -Math.PI * 0.25, -Math.PI * 0.75];
+  // upper-right, upper-left, lower-right, lower-left
+  var legAngles = [-0.22, Math.PI + 0.22, 0.28, Math.PI - 0.28];
   var la = theta + legAngles[legIndex];
   var ix = thorax.x + Math.cos(la) * idealDist, iy = thorax.y + Math.sin(la) * idealDist;
   if (moveDir) { ix += moveDir.x * 20; iy += moveDir.y * 20; }

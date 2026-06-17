@@ -13,6 +13,7 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
 
     /* 打包方向向量 */
     var wrapOX = 0, wrapOY = 0, wrapOL = 1, wrapT2 = 0, wrapAt = 0, wrapSpeed = 0;
+    var activeWrapLegs = [];
     if (wrappingTarget) {
       var wo = wrappingTarget;
       wrapOX = wo.particle.pos.x - spider.thorax.pos.x;
@@ -22,6 +23,15 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
       wrapT2 = wo.wrapT;
       wrapAt = wo.animT;
       wrapSpeed = wrapT2 * wo.wrapDur * 0.58;
+
+      var legDists = [];
+      for (var li = 0; li < footState.length; li++) {
+        var ldx = footState[li].current.x - wo.particle.pos.x;
+        var ldy = footState[li].current.y - wo.particle.pos.y;
+        legDists.push({ idx: li, d2: ldx * ldx + ldy * ldy });
+      }
+      legDists.sort(function (a, b) { return a.d2 - b.d2; });
+      activeWrapLegs = [legDists[0].idx, legDists[1].idx];
     }
 
     var thoraxDX = 0, thoraxDY = 0, abdomenDX = 0, abdomenDY = 0;
@@ -35,26 +45,6 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
     for (var fi = 0; fi < footState.length; fi++) {
       var fs = footState[fi];
       var drawCX = fs.current.x, drawCY = fs.current.y;
-      var prevCX = drawCX, prevCY = drawCY;
-
-      if (wrappingTarget) {
-        var perpX = -wrapOY, perpY = wrapOX;
-        if (fi === 0 || fi === 1) {
-          var phase = (fi === 0) ? 0 : Math.PI;
-          var speedT = wrapSpeed + phase;
-          var reach = 16 + wrapT2 * 8;
-          var lateral = 12 * wrapT2;
-          drawCX += wrapOX * Math.sin(speedT) * reach + perpX * Math.cos(speedT * 0.7 + phase) * lateral;
-          drawCY += wrapOY * Math.sin(speedT) * reach + perpY * Math.cos(speedT * 0.7 + phase) * lateral;
-        } else {
-          var phase2 = (fi === 2) ? 0 : Math.PI;
-          var backSwing = Math.sin(wrapSpeed * 0.5 + phase2) * 7 * wrapT2;
-          drawCX += -wrapOX * Math.abs(Math.sin(wrapSpeed * 0.5 + phase2)) * 4 + perpX * backSwing * 0.6;
-          drawCY += -wrapOY * Math.abs(Math.sin(wrapSpeed * 0.5 + phase2)) * 4 + perpY * backSwing * 0.6;
-        }
-        ctx.beginPath(); ctx.moveTo(prevCX, prevCY); ctx.lineTo(drawCX, drawCY);
-        ctx.strokeStyle = 'rgba(80,80,80,0.18)'; ctx.lineWidth = 1.2; ctx.stroke();
-      }
       footDraw.push({ x: drawCX, y: drawCY });
     }
 
@@ -72,6 +62,29 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
       }
       if (footDraw[ci]) {
         pts[pts.length - 1] = footDraw[ci];
+      }
+
+      if (wrappingTarget) {
+        var perpX = -wrapOY, perpY = wrapOX;
+        var activeIdx = activeWrapLegs.indexOf(ci);
+
+        if (activeIdx !== -1) {
+          var legPhase = activeIdx === 0 ? 0 : Math.PI;
+          var legTime = wrapAt * 0.95 + legPhase;
+          for (var ai = 0; ai < pts.length; ai++) {
+            var factor = (ai + 1) / pts.length;
+            var scrambleForward = Math.sin(legTime * 0.9 + ai * 0.65) * (4 + factor * 8 + wrapT2 * 7);
+            var scrambleLateral = Math.cos(legTime * 1.35 + ai * 0.5) * (2 + factor * 5 + wrapT2 * 4);
+            pts[ai].x += wrapOX * scrambleForward * factor + perpX * scrambleLateral * factor;
+            pts[ai].y += wrapOY * scrambleForward * factor + perpY * scrambleLateral * factor;
+          }
+        } else {
+          for (var bi = 0; bi < pts.length; bi++) {
+            var settle = (bi + 1) / pts.length;
+            pts[bi].x += -wrapOX * (1.4 + wrapT2 * 1.8) * settle;
+            pts[bi].y += -wrapOY * (1.4 + wrapT2 * 1.8) * settle;
+          }
+        }
       }
 
       ctx.save();
@@ -120,7 +133,7 @@ export function setupSpiderDraw(spider, legConstraintCount, footState, blinkStat
 
     // Replace old spider body with provided image head while keeping size similar.
     if (popoHeadImg.complete && popoHeadImg.naturalWidth > 0) {
-      var imgW = 32;
+      var imgW = 36.8;
       var imgH = imgW * (popoHeadImg.naturalHeight / popoHeadImg.naturalWidth);
       var imgCX = ax + fnx * 4;
       var imgCY = ay + fny * 4;

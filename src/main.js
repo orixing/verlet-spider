@@ -226,8 +226,13 @@ window.onload = function () {
     legConstraintCount = spider.constraints.length;
     STEP_SPEED = P.stepSpeed; STEP_THRESH = P.stepThresh; REST_THRESH = P.restThresh;
     footState = spider.legs.map(function (lp, idx) {
-      var angle = (idx / 4) * Math.PI * 2 - Math.PI / 4;
-      var ip = new Vec2(cx + Math.cos(angle) * 25, cy + Math.sin(angle) * 25);
+      var footOffsets = [
+        new Vec2(16, -1),
+        new Vec2(-16, -1),
+        new Vec2(15, 4),
+        new Vec2(-15, 4)
+      ];
+      var ip = new Vec2(cx + footOffsets[idx].x, cy + footOffsets[idx].y);
       lp.pos.mutableSet(ip); lp.lastPos.mutableSet(ip);
       return {
         particle: lp, current: new Vec2(ip.x, ip.y), from: new Vec2(ip.x, ip.y),
