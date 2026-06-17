@@ -279,9 +279,15 @@ window.onload = function () {
       if (event === 'collect_drop') {
         tutorialStep = 1;
         hideHint();
-        /* Spawn a fly + 1 leaf after 1.5s */
+        /* Spawn a fly (aimed at web center, low wobble, deep penetration) + 1 leaf after 1.5s */
         setTimeout(function () {
-          launchObject('bug');
+          var bug = launchObject('bug', { flyTarget: { x: cx, y: cy } });
+          /* Reduce wobble so it flies straighter */
+          bug.buzzAmp = 3;
+          /* Force deep penetration so it sticks near center */
+          bug.stickDelay = 9999;
+          bug.enteredWebZone = false;
+          bug._forceCenterStick = true;
           launchObject('drop');
           showHint('苍蝇会破坏蜘蛛网！');
           tutorialStep = 2;
@@ -768,10 +774,20 @@ window.onload = function () {
     objCounts[kind] = Math.max(0, objCounts[kind] + delta);
     document.getElementById('cnt-' + kind).textContent = objCounts[kind];
   }
-  function launchObject(kind) {
+  function launchObject(kind, opts) {
     var obj = new ThrownObj(kind, W, H, sim, P, gameState, getCfg, currentLevel);
     obj._W = W; obj._H = H;
+    /* Override fly target — recalculate baseVx/baseVy toward specified point */
+    if (opts && opts.flyTarget && kind === 'bug') {
+      var tx = opts.flyTarget.x, ty = opts.flyTarget.y;
+      var px = obj.particle.pos.x, py = obj.particle.pos.y;
+      var dx = tx - px, dy = ty - py;
+      var dl = Math.sqrt(dx * dx + dy * dy) || 1;
+      obj.baseVx = (dx / dl) * 2.5;
+      obj.baseVy = (dy / dl) * 2.5;
+    }
     thrownObjects.push(obj); updateBadge(kind, 1);
+    return obj;
   }
   function clearAllObjects() {
     spiderUnits.forEach(function (u) { u.wrappingTarget = null; u._repairCooldown = 0; });
@@ -796,13 +812,15 @@ window.onload = function () {
   }
 
   /** Show +N pop text above progress bar */
-  function showFoodPop(amount) {
+  function showFoodPop(kind) {
     var popEl = document.getElementById('food-bar-pop');
     if (!popEl) return;
-    popEl.textContent = '+' + amount;
+    var emoji = kind === 'drop' ? '\uD83C\uDF3F' : '\uD83C\uDF56';  /* 🌿 or 🍖 */
+    var amount = FOOD_VALUES[kind] || 1;
+    popEl.textContent = '+' + amount + emoji;
     popEl.style.animation = 'none';
     void popEl.offsetWidth;
-    popEl.style.animation = 'foodPopAnim 0.5s ease-out forwards';
+    popEl.style.animation = 'foodPopAnim 1.0s ease-out forwards';
   }
 
   function addFood(kind) {
@@ -810,7 +828,7 @@ window.onload = function () {
     var amount = FOOD_VALUES[kind] || 1;
     foodCollected += amount;
     refreshFoodBar();
-    showFoodPop(amount);
+    showFoodPop(kind);
     pendingLevelCheck = true;
     if (kind === 'drop') advanceTutorial('collect_drop');
   }
@@ -1065,7 +1083,30 @@ window.onload = function () {
         }
         /* C方案粘网 */
         var stepLen = Math.sqrt((p.pos.x - prevX) * (p.pos.x - prevX) + (p.pos.y - prevY) * (p.pos.y - prevY));
-        if (!obj.released && (_inWebZone(p.pos.x, p.pos.y) || obj.enteredWebZone)) {
+
+        /* Force-center-stick: when close to center, pick nearest constraint and stick */
+        if (obj._forceCenterStick && obj.state === 'falling') {
+          var dcx = p.pos.x - cx, dcy = p.pos.y - cy;
+          if (dcx * dcx + dcy * dcy < 60 * 60) {
+            var bestHit = null, bestD = Infinity;
+            var _cs = spiderweb.constraints;
+            for (var ci = 0; ci < _cs.length; ci++) {
+              var cc = _cs[ci];
+              if (!(cc instanceof DistanceConstraint)) continue;
+              for (var si = 0; si <= 4; si++) {
+                var tt = si / 4;
+                var wx = cc.a.pos.x + (cc.b.pos.x - cc.a.pos.x) * tt;
+                var wy = cc.a.pos.y + (cc.b.pos.y - cc.a.pos.y) * tt;
+                var dd = (wx - p.pos.x) * (wx - p.pos.x) + (wy - p.pos.y) * (wy - p.pos.y);
+                if (dd < bestD) { bestD = dd; bestHit = { c: cc, t: tt, x: wx, y: wy, radial: 0.1 }; }
+              }
+            }
+            if (bestHit) {
+              obj._forceCenterStick = false;
+              obj.stickToPoint(bestHit, spiderweb);
+            }
+          }
+        } else if (!obj.released && (_inWebZone(p.pos.x, p.pos.y) || obj.enteredWebZone)) {
           if (!obj.enteredWebZone) {
             obj.enteredWebZone = true; obj.penetrationDist = 0; obj.hitHistory = [];
             var outerR = _getWebOuterR();

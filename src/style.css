@@ -84,7 +84,8 @@ h1{
 }
 @keyframes foodPopAnim{
   0%  {opacity:1;transform:scale(1.4);}
-  60% {opacity:1;transform:scale(1.0);}
+  50% {opacity:1;transform:scale(1.0);}
+  80% {opacity:0.6;transform:scale(0.9);}
   100%{opacity:0;transform:scale(0.8);}
 }
 /* ── Tutorial hint text ── */
