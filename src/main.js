@@ -682,11 +682,9 @@ window.onload = function () {
       '<div class="overlay-title">通关！</div>'
       + '<div class="overlay-subtitle">难度 ' + difficultyLevel + '  ·  总得分 ' + totalScore + '</div>'
       + '<div class="overlay-total-score">' + totalScore + ' 分</div>'
-      + '<button class="overlay-btn" id="btn-nextlv" style="margin-bottom:8px">更高难度挑战</button>'
-      + '<br><button class="overlay-btn" style="background:#555;margin-top:4px" id="btn-restart-s">从头开始</button>'
+      + '<button class="overlay-btn" id="btn-replay" style="margin-bottom:8px">再玩一次</button>'
     );
-    document.getElementById('btn-nextlv').onclick = function () { difficultyLevel++; startGame(); };
-    document.getElementById('btn-restart-s').onclick = startGameFromBeginning;
+    document.getElementById('btn-replay').onclick = startGameFromBeginning;
   }
 
   function showGameOver() {
